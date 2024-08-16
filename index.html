@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Food chart</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+* {
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+#chart {
+  width: 800px;
+  height: 800px;
+}
+
+#tooltip {
+  position: absolute;
+  background: white;
+  border: 1px solid gray;
+  border-radius: 5px;
+  padding: 10px;
+  opacity: 0.0;
+  transition: opacity 0.2s;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+th, td {
+  border: 1px solid #c0c0c0;
+  padding: 8px;
+  text-align: left;
+}
+th {
+  background-color: #f2f2f2;
+}
+
+.hidden {
+  display: none;
+}
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  background-color: #f9f9f9;
+  min-width: 160px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1;
+}
+
+.dropdown-menu   
+ li {
+  cursor: pointer;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+  text-align: left;
+}
+
+.dropdown-menu li:hover {
+  background-color: #f1f1f1;
+}
+
+#dropdownButton:hover .dropdown-menu {
+  display: block;
+}
+</style>
+</head>
+
+<body>
+  <button id="toggle_circlemap"></button>
+  <button id="toggle_perserving"></button>
+  <button id="toggle_netcarbs"></button>
+  <select id="show_categories">
+      <option value="Show all">Show all</option>
+      <option value="Beverages">Beverages</option>
+      <option value="Carbs and flours">Carbs and flours</option>
+      <option value="Condiments">Condiments</option>
+      <option value="Dairy and eggs">Dairy and eggs</option>
+      <option value="Fruits">Fruits</option>
+      <option value="Meats">Meats</option>
+      <option value="Nuts and beans">Nuts and beans</option>
+      <option value="Oils and butters">Oils and butters</option>
+      <option value="Seafood">Seafood</option>
+      <option value="Vegetables">Vegetables</option>
+  </select>
+  <div id="chart"></div>
+  <div id="tooltip"></div>
+  <script src="script.js"></script>
+</body>
+<script>
+
+//------------------------------------------------
+// Global variables
+
+let showPerServing = false; // true = per serving; false = per 100g
+let showNetCarbs = true; // true = net carbs; false = total carbs
+let showTriangleMap = true; // true = triangle map; false = circular map
+let carb_hi_threshold = 40;
+let carb_lo_threshold = 30;
+let showCategory = "Show all";
+let svg;
+
+//------------------------------------------------
+// Create a color scale
+const colorScale = d3.scaleThreshold()
+  .domain([0, carb_lo_threshold, carb_lo_threshold*0.667+carb_hi_threshold*0.333, carb_lo_threshold*0.337+carb_hi_threshold*0.667, carb_hi_threshold, 100])
+  .range(["#00C000", "#00C000", "#F0C000", "#F0C000", "#FF0000", "#FF0000"]);
+
+//------------------------------------------------
+// Data initialization
+const data = [
+{name:"Bread, white, commercially prepared",category:"Carbs and flours",portion:"1 slice",pw:27.3, p:9.43, f:3.59, c:49.2, fbr:2.3, g:0},
+{name:"Bread, whole-wheat, commercially prepared",category:"Carbs and flours",portion:"1 slice",pw:32.1, p:12.3, f:3.55, c:43.1, fbr:6, g:0},
+{name:"Cookies, oatmeal, soft, with raisins",category:"Carbs and flours",portion:"1 cookie",pw:27, p:5.79, f:14.3, c:69.6, fbr:3.3, g:0},
+{name:"Beef, chuck, roast, boneless, choice, raw",category:"Meats",portion:"3 oz",pw:85, p:18.4, f:17.8, c:0, fbr:0, g:0},
+{name:"Beef, flank, steak, boneless, choice, raw",category:"Meats",portion:"8 oz",pw:226.666666666667, p:20.13125, f:9.399, c:0, fbr:0, g:0},
+{name:"Beef, ground, 80% lean meat / 20% fat, raw",category:"Meats",portion:"3 oz",pw:85, p:17.53125, f:19.44, c:0, fbr:0, g:0},
+{name:"Beef, ground, 90% lean meat / 10% fat, raw",category:"Meats",portion:"3 oz",pw:85, p:18.15625, f:12.85, c:0, fbr:0, g:0},
+{name:"Beef, loin, tenderloin roast, separable lean only, boneless, trimmed to 0\" fat, select, cooked, roasted",category:"Meats",portion:"1 roast",pw:462, p:27.7, f:6.36, c:0, fbr:0, g:0},
+{name:"Beef, loin, top loin steak, boneless, lip-on, separable lean only, trimmed to 1/8\" fat, choice, raw",category:"Meats",portion:"1 steak",pw:284, p:22.8, f:6.39, c:0, fbr:0, g:0},
+{name:"Beef, ribeye, steak, boneless, choice, raw",category:"Meats",portion:"8 oz",pw:226.666666666667, p:18.74375, f:20.04, c:0, fbr:0, g:0},
+{name:"Beef, round, eye of round roast, boneless, separable lean only, trimmed to 0\" fat, select, raw",category:"Meats",portion:"1 roast",pw:690, p:23.4, f:2.48, c:0, fbr:0, g:0},
+{name:"Beef, round, top round roast, boneless, separable lean only, trimmed to 0\" fat, select, raw",category:"Meats",portion:"1 roast",pw:788, p:23.7, f:2.41, c:0, fbr:0, g:0},
+{name:"Beef, round, top round, boneless, choice, raw",category:"Meats",portion:"3 oz",pw:85, p:21.475, f:5.703, c:0.852, fbr:0, g:0},
+{name:"Beef, short loin, porterhouse steak, separable lean only, trimmed to 1/8\" fat, select, raw",category:"Meats",portion:"1 steak",pw:525, p:22.7, f:5.32, c:0, fbr:0, g:0},
+{name:"Beef, short loin, t-bone steak, bone-in, separable lean only, trimmed to 1/8\" fat, choice, cooked, grilled",category:"Meats",portion:"1 steak",pw:360, p:27.3, f:11.4, c:0, fbr:0, g:0},
+{name:"Almond milk, unsweetened, plain, refrigerated",category:"Beverages",portion:"1 cup",pw:240, p:0.65625, f:1.558, c:0.67075, fbr:0, g:0},
+{name:"Almond milk, unsweetened, plain, shelf stable",category:"Beverages",portion:"1 cup",pw:240, p:0.5546875, f:1.221, c:0.3371125, fbr:0, g:0},
+{name:"Oat milk, unsweetened, plain, refrigerated",category:"Beverages",portion:"1 cup",pw:240, p:0.796875, f:2.749, c:5.100325, fbr:0, g:0},
+{name:"Buckwheat, whole grain",category:"Carbs and flours",portion:"1 cup",pw:168, p:11.06534, f:3.039, c:71.13066, fbr:4.4255, g:0},
+{name:"Flour, 00",category:"Carbs and flours",portion:"1 cup",pw:120, p:11.4, f:1.52, c:74.4462, fbr:2.656, g:0},
+{name:"Flour, amaranth",category:"Carbs and flours",portion:"1 cup",pw:140, p:13.2093, f:6.236, c:68.7787, fbr:8.1225, g:0},
+{name:"Flour, barley",category:"Carbs and flours",portion:"1 cup",pw:148, p:8.72168, f:2.45, c:77.39832, fbr:14.47, g:0},
+{name:"Flour, bread, white, enriched, unbleached",category:"Carbs and flours",portion:"1 cup",pw:120, p:14.3, f:1.65, c:72.8, fbr:0, g:0},
+{name:"Flour, buckwheat",category:"Carbs and flours",portion:"1 cup",pw:120, p:8.88492, f:2.484, c:75.01808, fbr:10.865, g:0},
+{name:"Flour, corn, yellow, fine meal, enriched",category:"Carbs and flours",portion:"1 cup",pw:120, p:6.2, f:1.74, c:80.8, fbr:4.3, g:0},
+{name:"Flour, oat, whole grain",category:"Carbs and flours",portion:"1 cup",pw:120, p:13.16875, f:6.309, c:69.91725, fbr:11.685, g:0},
+{name:"Flour, pastry, unenriched, unbleached",category:"Carbs and flours",portion:"1 cup",pw:120, p:8.75, f:1.64, c:77.2, fbr:0, g:0},
+{name:"Flour, quinoa",category:"Carbs and flours",portion:"1 cup",pw:120, p:11.92235, f:6.601, c:69.52465, fbr:6.624, g:0},
+{name:"Flour, rice, brown",category:"Carbs and flours",portion:"1 cup",pw:120, p:7.19, f:3.85, c:75.5, fbr:0, g:0},
+{name:"Flour, rice, glutinous",category:"Carbs and flours",portion:"1 cup",pw:120, p:6.69, f:1.16, c:80.1, fbr:0, g:0},
+{name:"Flour, rice, white, unenriched",category:"Carbs and flours",portion:"1 cup",pw:120, p:6.94, f:1.3, c:79.8, fbr:0.5, g:0},
+{name:"Flour, rye",category:"Carbs and flours",portion:"1 cup",pw:120, p:8.3952, f:1.908, c:77.1618, fbr:15.79, g:0},
+{name:"Flour, semolina, coarse and semi-coarse",category:"Carbs and flours",portion:"1 cup",pw:120, p:11.73125, f:1.597, c:73.82345, fbr:3.216, g:0},
+{name:"Flour, semolina, fine",category:"Carbs and flours",portion:"1 cup",pw:120, p:13.33125, f:1.838, c:71.98575, fbr:3.683, g:0},
+{name:"Flour, sorghum",category:"Carbs and flours",portion:"1 cup",pw:120, p:8.27277, f:3.586, c:77.39123, fbr:7.0895, g:0},
+{name:"Flour, spelt, whole grain",category:"Carbs and flours",portion:"1 cup",pw:120, p:14.475, f:2.543, c:70.723, fbr:9.339, g:0},
+{name:"Flour, wheat, all-purpose, enriched, bleached",category:"Carbs and flours",portion:"1 cup",pw:120, p:10.9, f:1.48, c:77.3, fbr:0, g:0},
+{name:"Flour, wheat, all-purpose, enriched, unbleached",category:"Carbs and flours",portion:"1 cup",pw:120, p:13.1, f:1.48, c:73.2, fbr:0, g:0},
+{name:"Flour, wheat, all-purpose, unenriched, unbleached",category:"Carbs and flours",portion:"1 cup",pw:120, p:12, f:1.7, c:74.6, fbr:3, g:0},
+{name:"Flour, whole wheat, unenriched",category:"Carbs and flours",portion:"1 cup",pw:120, p:15.1, f:2.73, c:71.2, fbr:10.6, g:0},
+{name:"Millet, whole grain",category:"Carbs and flours",portion:"1 cup",pw:120, p:10.02177, f:4.194, c:74.44623, fbr:2.9725, g:0},
+{name:"Oats, whole grain, rolled, old fashioned",category:"Carbs and flours",portion:"0.5 cup",pw:40, p:13.49645, f:5.89, c:68.65755, fbr:10.42, g:0},
+{name:"Oats, whole grain, steel cut",category:"Carbs and flours",portion:"0.25 cup",pw:40, p:12.51118, f:5.8, c:69.75082, fbr:11.95, g:0},
+{name:"Rice, brown, long grain, unenriched, raw",category:"Carbs and flours",portion:"0.25 cup",pw:46.25, p:7.25305, f:3.306, c:76.68795, fbr:3.6585, g:0},
+{name:"Rice, white, long grain, unenriched, raw",category:"Carbs and flours",portion:"0.25 cup",pw:46.25, p:7.03885, f:1.033, c:80.31315, fbr:1.4599, g:0},
+{name:"Butter, salted",category:"Oils and butters",portion:"1.5 teaspoon",pw:7.05, p:0, f:82.2, c:0, fbr:0, g:0},
+{name:"Butter, unsalted",category:"Oils and butters",portion:"1.5 teaspoon",pw:7.05, p:0, f:81.5, c:0, fbr:0, g:0},
+{name:"Buttermilk, low fat",category:"Dairy and eggs",portion:"1 cup",pw:245, p:3.464978, f:1.081, c:4.811522, fbr:0, g:0},
+{name:"Cheese, American, restaurant",category:"Dairy and eggs",portion:"1 slice",pw:16, p:17.5, f:31.1, c:6.35, fbr:0, g:0.12},
+{name:"Cheese, cheddar",category:"Dairy and eggs",portion:"1 slice",pw:17, p:23.3, f:34, c:2.44, fbr:0, g:0.07},
+{name:"Cheese, cotija, solid",category:"Dairy and eggs",portion:"1 oz",pw:28, p:23.83568, f:27.24, c:2.72432, fbr:0, g:0},
+{name:"Cheese, cottage, lowfat, 2% milkfat",category:"Dairy and eggs",portion:"1 cup",pw:220, p:11, f:2.3, c:4.31, fbr:0, g:0.12},
+{name:"Cheese, dry white, queso seco",category:"Dairy and eggs",portion:"1 cup",pw:97.3, p:24.5, f:24.3, c:2.07, fbr:0, g:0.3},
+{name:"Cheese, feta, whole milk, crumbled",category:"Dairy and eggs",portion:"1 oz",pw:28, p:19.70782, f:19.08, c:5.58318, fbr:0, g:0.4294},
+{name:"Cheese, monterey jack, solid",category:"Dairy and eggs",portion:"1 slice",pw:28, p:22.6171, f:32.63, c:1.8979, fbr:0, g:0},
+{name:"Cheese, mozzarella, low moisture, part-skim",category:"Dairy and eggs",portion:"1 cup",pw:86.2, p:23.7, f:20.4, c:4.44, fbr:0, g:0.86},
+{name:"Cheese, oaxaca, solid",category:"Dairy and eggs",portion:"1 oz",pw:28, p:22.14498, f:22.1, c:2.40202, fbr:0, g:0},
+{name:"Cheese, parmesan, grated",category:"Dairy and eggs",portion:"1 tablespoon",pw:7.6, p:29.6, f:28, c:12.4, fbr:0, g:0.07},
+{name:"Cheese, parmesan, grated, refrigerated",category:"Dairy and eggs",portion:"1 tablespoon",pw:7.6, p:30.13912, f:29.5, c:4.33188, fbr:0, g:0.03125},
+{name:"Cheese, pasteurized process, American, vitamin D fortified",category:"Dairy and eggs",portion:"1 slice",pw:20.6, p:18, f:30.6, c:5.27, fbr:0, g:0.13},
+{name:"Cheese, provolone, sliced",category:"Dairy and eggs",portion:"1 slice",pw:28, p:23.45288, f:28.13, c:2.45312, fbr:0, g:0},
+{name:"Cheese, queso fresco, solid",category:"Dairy and eggs",portion:"1 oz",pw:28, p:18.8848, f:23.36, c:2.9572, fbr:0, g:0},
+{name:"Cheese, ricotta, whole milk",category:"Dairy and eggs",portion:"0.2 cup",pw:64.6, p:7.81, f:11, c:6.86, fbr:0, g:0},
+{name:"Cheese, swiss",category:"Dairy and eggs",portion:"1 slice",pw:21.9, p:27, f:31, c:1.44, fbr:0, g:0},
+{name:"Cottage cheese, full fat, large or small curd",category:"Dairy and eggs",portion:"0.5 cup",pw:113, p:11.62436, f:4.225, c:4.59964, fbr:0, g:0},
+{name:"Cream cheese, full fat, block",category:"Dairy and eggs",portion:"1 tablespoon",pw:14.5, p:5.78985, f:33.49, c:4.55615, fbr:0, g:0},
+{name:"Cream, heavy",category:"Dairy and eggs",portion:"2 tablespoon",pw:30, p:2.017994, f:35.56, c:3.799506, fbr:0, g:0},
+{name:"Cream, sour, full fat",category:"Dairy and eggs",portion:"2 tablespoon",pw:30, p:3.070694, f:17.99, c:5.555506, fbr:0, g:0},
+{name:"Egg, white, dried",category:"Dairy and eggs",portion:"1 tablespoon",pw:7, p:79.9, f:0.65, c:6.02, fbr:0, g:0},
+{name:"Egg, white, raw, frozen, pasteurized",category:"Dairy and eggs",portion:"1 oz",pw:28.4, p:10.1, f:0.16, c:0.74, fbr:0, g:0},
+{name:"Egg, whole, dried",category:"Dairy and eggs",portion:"1 oz",pw:28.4, p:48.1, f:39.8, c:1.87, fbr:0, g:0},
+{name:"Egg, whole, raw, frozen, pasteurized",category:"Dairy and eggs",portion:"1 oz",pw:28.4, p:12.3, f:10.3, c:0.91, fbr:0, g:0},
+{name:"Egg, yolk, dried",category:"Dairy and eggs",portion:"1 oz",pw:28.4, p:34.2, f:55.5, c:1.07, fbr:0, g:0},
+{name:"Egg, yolk, raw, frozen, pasteurized",category:"Dairy and eggs",portion:"1 oz",pw:28.4, p:15.6, f:25.1, c:0.59, fbr:0, g:0},
+{name:"Eggs, Grade A, Large, egg white",category:"Dairy and eggs",portion:"1 egg",pw:34, p:10.7, f:0, c:2.36, fbr:0, g:0},
+{name:"Eggs, Grade A, Large, egg whole",category:"Dairy and eggs",portion:"1 egg",pw:50.3, p:12.4, f:9.96, c:0.96, fbr:0, g:0},
+{name:"Eggs, Grade A, Large, egg yolk",category:"Dairy and eggs",portion:"1 egg",pw:17, p:16.2, f:28.8, c:1.02, fbr:0, g:0},
+{name:"Milk, lowfat, fluid, 1% milkfat, with added vitamin A and vitamin D",category:"Beverages",portion:"1 cup",pw:233, p:3.38, f:0.95, c:5.19, fbr:0, g:0},
+{name:"Milk, nonfat, fluid, with added vitamin A and vitamin D (fat free or skim)",category:"Beverages",portion:"1 cup",pw:229, p:3.43, f:0.08, c:4.89, fbr:0, g:0},
+{name:"Milk, reduced fat, fluid, 2% milkfat, with added vitamin A and vitamin D",category:"Beverages",portion:"1 cup",pw:227, p:3.35, f:1.9, c:4.91, fbr:0, g:0},
+{name:"Milk, whole, 3.25% milkfat, with added vitamin D",category:"Beverages",portion:"1 cup",pw:229, p:3.28, f:3.2, c:4.67, fbr:0, g:0},
+{name:"Yogurt, Greek, plain, nonfat",category:"Dairy and eggs",portion:"6 oz",pw:170.25, p:10.3, f:0.37, c:3.64, fbr:0, g:0.7},
+{name:"Yogurt, Greek, plain, whole milk",category:"Dairy and eggs",portion:"6 oz",pw:170.25, p:8.77888, f:4.394, c:4.75402, fbr:0, g:0.6394},
+{name:"Yogurt, Greek, strawberry, nonfat",category:"Dairy and eggs",portion:"6 oz",pw:170.25, p:8.06, f:0.15, c:12.2, fbr:0.6, g:0.52},
+{name:"Yogurt, plain, nonfat",category:"Dairy and eggs",portion:"6 oz",pw:160, p:4.22675, f:0.0875, c:8.07675, fbr:0, g:0},
+{name:"Yogurt, plain, whole milk",category:"Dairy and eggs",portion:"6 oz",pw:160, p:3.824172, f:4.484, c:5.574928, fbr:0, g:0.7456},
+{name:"Oil, canola",category:"Oils and butters",portion:"100 milliliter",pw:90.9, p:0, f:94.5, c:0, fbr:0, g:0},
+{name:"Oil, coconut",category:"Oils and butters",portion:"1 tablespoon",pw:11.6, p:0, f:99.1, c:0.84, fbr:0, g:0},
+{name:"Oil, corn",category:"Oils and butters",portion:"1 tablespoon",pw:15, p:0, f:94, c:0, fbr:0, g:0},
+{name:"Oil, olive, extra light",category:"Oils and butters",portion:"1 tablespoon",pw:14, p:0, f:92.9356, c:0, fbr:0, g:0},
+{name:"Oil, olive, extra virgin",category:"Oils and butters",portion:"1 tablespoon",pw:14, p:0, f:93.7, c:0, fbr:0, g:0},
+{name:"Oil, peanut",category:"Oils and butters",portion:"1 tablespoon",pw:14, p:0, f:93.4325, c:0, fbr:0, g:0},
+{name:"Oil, safflower",category:"Oils and butters",portion:"1 tablespoon",pw:14, p:0, f:93.2004, c:0, fbr:0, g:0},
+{name:"Oil, soybean",category:"Oils and butters",portion:"1 tablespoon",pw:14, p:0, f:94.6, c:0, fbr:0, g:0},
+{name:"Oil, sunflower",category:"Oils and butters",portion:"1 tablespoon",pw:14, p:0, f:93.1873, c:0, fbr:0, g:0},
+{name:"Crustaceans, crab, blue swimming, lump, pasteurized, refrigerated",category:"Seafood",portion:"5 oz",pw:140, p:18.65, f:0.8075, c:0, fbr:0, g:0},
+{name:"Crustaceans, shrimp, farm raised, raw",category:"Seafood",portion:"3 oz",pw:84, p:15.56875, f:0.8013, c:0.48495, fbr:0, g:0},
+{name:"Fish, catfish, farm raised, raw",category:"Seafood",portion:"4 oz",pw:112, p:16.46875, f:7.308, c:0, fbr:0, g:0},
+{name:"Fish, cod, Atlantic, wild caught, raw",category:"Seafood",portion:"4 oz",pw:112, p:16.06875, f:0.6675, c:0, fbr:0, g:0},
+{name:"Fish, haddock, raw",category:"Seafood",portion:"4 oz",pw:112, p:16.3, f:0.45, c:0, fbr:0, g:0},
+{name:"Fish, pollock, raw",category:"Seafood",portion:"4 oz",pw:112, p:12.3, f:0.41, c:0, fbr:0, g:0},
+{name:"Fish, salmon, Atlantic, farm raised, raw",category:"Seafood",portion:"4 oz",pw:112, p:20.31875, f:13.11, c:0, fbr:0, g:0},
+{name:"Fish, salmon, sockeye, wild caught, raw",category:"Seafood",portion:"4 oz",pw:112, p:22.3, f:4.936, c:0, fbr:0, g:0},
+{name:"Fish, tilapia, farm raised, raw",category:"Seafood",portion:"4 oz",pw:112, p:19, f:2.479, c:0, fbr:0, g:0},
+{name:"Fish, tuna, light, canned in water, drained solids",category:"Seafood",portion:"1 can",pw:107, p:19, f:0.94, c:0.08, fbr:0, g:0},
+{name:"Apple juice, with added vitamin C, from concentrate, shelf stable",category:"Beverages",portion:"1 cup",pw:248, p:0.0859375, f:0.2863, c:11.3639625, fbr:0, g:0},
+{name:"Apples, fuji, with skin, raw",category:"Fruits",portion:"1 apple",pw:192, p:0.14921875, f:0.16125, c:15.67558125, fbr:2.0875, g:0},
+{name:"Apples, gala, with skin, raw",category:"Fruits",portion:"1 apple",pw:172, p:0.13140625, f:0.15, c:14.78404375, fbr:2.1045, g:0},
+{name:"Apples, granny smith, with skin, raw",category:"Fruits",portion:"1 apple",pw:167, p:0.2678125, f:0.13875, c:14.1714875, fbr:2.507, g:0},
+{name:"Apples, honeycrisp, with skin, raw",category:"Fruits",portion:"1 apple",pw:182, p:0.10078125, f:0.1, c:14.69096875, fbr:1.7105, g:0},
+{name:"Apples, red delicious, with skin, raw",category:"Fruits",portion:"1 apple",pw:212, p:0.18875, f:0.21125, c:14.79085, fbr:2.0215, g:0},
+{name:"Applesauce, unsweetened, with added vitamin C",category:"Fruits",portion:"0.5 cup",pw:122, p:0.2734375, f:0.1625, c:12.2615625, fbr:0, g:0},
+{name:"Bananas, overripe, raw",category:"Fruits",portion:"1 Banana",pw:110, p:0.73, f:0.22, c:20.1, fbr:1.86, g:0},
+{name:"Bananas, ripe and slightly ripe, raw",category:"Fruits",portion:"1 Banana",pw:115, p:0.74, f:0.29, c:23, fbr:3.16, g:0},
+{name:"Blueberries, raw",category:"Fruits",portion:"0.5 cup",pw:74, p:0.703125, f:0.3063, c:14.571775, fbr:0, g:0},
+{name:"Cherries, sweet, dark red, raw",category:"Fruits",portion:"1 cherry",pw:8.2, p:1.039375, f:0.1925, c:16.163125, fbr:0, g:0},
+{name:"Cranberry juice, not fortified, from concentrate, shelf stable",category:"Beverages",portion:"1 cup",pw:248, p:0, f:0.3375, c:7.26375, fbr:0, g:0},
+{name:"Figs, dried, uncooked",category:"Fruits",portion:"1 cup",pw:149, p:3.3, f:0.92, c:63.9, fbr:9.8, g:0.13},
+{name:"Grape juice, purple, with added vitamin C, from concentrate, shelf stable",category:"Beverages",portion:"1 cup",pw:248, p:0.2578125, f:0.2875, c:15.6227875, fbr:0, g:0},
+{name:"Grape juice, white, with added vitamin C, from concentrate, shelf stable",category:"Beverages",portion:"1 cup",pw:248, p:0.09375, f:0.265, c:15.84375, fbr:0, g:0},
+{name:"Grapefruit juice, red, not fortified, not from concentrate, refrigerated",category:"Beverages",portion:"1 cup",pw:248, p:0.5703125, f:0.2669, c:9.1021875, fbr:0, g:0},
+{name:"Grapefruit juice, white, canned or bottled, unsweetened",category:"Beverages",portion:"1 cup",pw:257, p:0.55, f:0.7, c:7.59, fbr:0.2, g:0},
+{name:"Grapes, green, seedless, raw",category:"Fruits",portion:"1 grape",pw:5, p:0.89875, f:0.2325, c:18.60375, fbr:0, g:0},
+{name:"Grapes, red, seedless, raw",category:"Fruits",portion:"1 grape",pw:5, p:0.914375, f:0.1638, c:20.196825, fbr:0, g:0},
+{name:"Kiwifruit, green, raw",category:"Fruits",portion:"1 kiwi",pw:69, p:1.06, f:0.44, c:14, fbr:3, g:0.17},
+{name:"Melons, cantaloupe, raw",category:"Fruits",portion:"1 cup",pw:160, p:0.82, f:0.18, c:8.16, fbr:0.8, g:0.06},
+{name:"Nectarines, raw",category:"Fruits",portion:"1 cup",pw:143, p:1.06, f:0.28, c:9.18, fbr:1.5, g:0},
+{name:"Olives, green, Manzanilla, stuffed with pimiento",category:"Vegetables",portion:"1 olive",pw:3.2, p:1.15, f:12.9, c:4.96, fbr:4, g:0},
+{name:"Orange juice, no pulp, not fortified, from concentrate, refrigerated",category:"Beverages",portion:"1 cup",pw:248, p:0.734375, f:0.325, c:10.340625, fbr:0, g:0},
+{name:"Orange juice, no pulp, not fortified, not from concentrate, refrigerated",category:"Beverages",portion:"1 cup",pw:248, p:0.8125, f:0.3563, c:10.0124, fbr:0, g:0},
+{name:"Oranges, raw, navels",category:"Fruits",portion:"1 orange",pw:165, p:0.91, f:0.15, c:11.8, fbr:2, g:0},
+{name:"Peaches, yellow, raw",category:"Fruits",portion:"1 peach",pw:147, p:0.91, f:0.27, c:10.1, fbr:1.5, g:0.06},
+{name:"Pears, raw, bartlett",category:"Fruits",portion:"1 pear",pw:166, p:0.38, f:0.16, c:15.1, fbr:3.1, g:0},
+{name:"Pineapple, raw",category:"Fruits",portion:"0.25 pineapple",pw:226.25, p:0.4609375, f:0.2113, c:14.0914625, fbr:0.9346, g:0},
+{name:"Raspberries, raw",category:"Fruits",portion:"1 berry",pw:4, p:1.008125, f:0.1875, c:12.904375, fbr:0, g:0},
+{name:"Strawberries, raw",category:"Fruits",portion:"1 berry",pw:13.6, p:0.6403125, f:0.22, c:7.7971875, fbr:1.8, g:0},
+{name:"Beans, black, canned, sodium added, drained and rinsed",category:"Nuts and beans",portion:"0.5 cup",pw:86, p:6.9125, f:1.273, c:19.8135, fbr:6.688, g:0},
+{name:"Beans, cannellini, canned, sodium added, drained and rinsed",category:"Nuts and beans",portion:"0.5 cup",pw:85, p:7.4125, f:1.169, c:18.8185, fbr:6.763, g:0},
+{name:"Beans, cannellini, dry",category:"Nuts and beans",portion:"0.5 cup",pw:101, p:21.5625, f:2.199, c:59.7955, fbr:0, g:0},
+{name:"Beans, great northern, canned, sodium added, drained and rinsed",category:"Nuts and beans",portion:"0.5 cup",pw:113.4, p:7.03125, f:1.266, c:19.32875, fbr:6.913, g:0},
+{name:"Beans, kidney, dark red, canned, sodium added, sugar added, drained and rinsed",category:"Nuts and beans",portion:"0.5 cup",pw:113.4, p:7.8, f:1.256, c:21.03, fbr:7.013, g:0},
+{name:"Beans, kidney, light red, canned, sodium added, sugar added, drained and rinsed",category:"Nuts and beans",portion:"0.5 cup",pw:113.4, p:7.30625, f:1.299, c:21.44675, fbr:7.4, g:0},
+{name:"Beans, navy, canned, sodium added, drained and rinsed",category:"Nuts and beans",portion:"0.5 cup",pw:90.315, p:6.56875, f:1.398, c:19.98325, fbr:6.85, g:0},
+{name:"Beans, pinto, canned, sodium added, drained and rinsed",category:"Nuts and beans",portion:"0.5 cup",pw:113.4, p:6.69375, f:1.266, c:19.60025, fbr:7.088, g:0},
+{name:"Blackeye pea, canned, sodium added, drained and rinsed",category:"Nuts and beans",portion:"0.5 cup",pw:82.5, p:6.925, f:1.296, c:19.1659, fbr:4.338, g:0},
+{name:"Blackeye pea, dry",category:"Nuts and beans",portion:"0.5 cup",pw:83.5, p:21.225, f:2.419, c:61.836, fbr:0, g:0},
+{name:"Chickpeas (garbanzo beans, bengal gram), canned, sodium added, drained and rinsed",category:"Nuts and beans",portion:"0.5 cup",pw:82, p:7.01875, f:3.096, c:20.32025, fbr:5.925, g:0},
+{name:"Chickpeas, (garbanzo beans, bengal gram), dry",category:"Nuts and beans",portion:"0.5 cup",pw:100, p:21.275, f:6.274, c:60.358, fbr:0, g:0},
+{name:"Flour, soy, defatted",category:"Carbs and flours",portion:"1 cup",pw:105, p:51.1, f:3.33, c:32.9, fbr:24.3, g:0},
+{name:"Flour, soy, full-fat",category:"Carbs and flours",portion:"1 cup",pw:84, p:38.6, f:20.7, c:27.9, fbr:0, g:0},
+{name:"Hummus, commercial",category:"Nuts and beans",portion:"2 tablespoon",pw:33.9, p:7.35, f:17.1, c:14.9, fbr:5.4, g:0},
+{name:"Lentils, dry",category:"Nuts and beans",portion:"0.25 cup",pw:60, p:23.56875, f:1.925, c:62.17125, fbr:0, g:0},
+{name:"Peanut butter, creamy",category:"Oils and butters",portion:"2 tablespoon",pw:32, p:23.99124, f:49.43, c:22.70376, fbr:6.323, g:0},
+{name:"Peanut butter, smooth style, with salt",category:"Oils and butters",portion:"2 tablespoon",pw:32, p:22.5, f:51.1, c:22.3, fbr:4.8, g:0},
+{name:"Peanuts, raw",category:"Nuts and beans",portion:"1 oz",pw:28, p:23.205, f:43.28, c:26.498, fbr:8.014, g:0},
+{name:"Soy milk, sweetened, plain, refrigerated",category:"Beverages",portion:"1 cup",pw:240, p:2.776875, f:1.957, c:2.996125, fbr:0, g:0},
+{name:"Soy milk, unsweetened, plain, shelf stable",category:"Beverages",portion:"1 cup",pw:240, p:3.546875, f:2.125, c:1.293125, fbr:0, g:0},
+{name:"Almond butter, creamy",category:"Oils and butters",portion:"2 tablespoon",pw:32, p:20.78734, f:53.04, c:21.23666, fbr:9.718, g:0},
+{name:"Flaxseed, ground",category:"Nuts and beans",portion:"1 tablespoon",pw:7, p:18.0359, f:37.28, c:34.3551, fbr:23.13, g:0},
+{name:"Flour, almond",category:"Carbs and flours",portion:"1 cup",pw:120, p:26.24375, f:50.23, c:16.24925, fbr:9.266, g:0},
+{name:"Flour, chestnut",category:"Carbs and flours",portion:"1 cup",pw:120, p:5.28675, f:4.636, c:80.45025, fbr:8.711, g:0},
+{name:"Flour, coconut",category:"Carbs and flours",portion:"1 cup",pw:120, p:16.1385, f:15.28, c:58.9025, fbr:34.24, g:0},
+{name:"Nuts, almonds, dry roasted, with salt added",category:"Nuts and beans",portion:"1 oz",pw:28, p:20.4, f:57.8, c:16.2, fbr:11, g:0},
+{name:"Nuts, almonds, whole, raw",category:"Nuts and beans",portion:"1 oz",pw:28, p:21.45038, f:51.09, c:20.03462, fbr:10.78, g:0},
+{name:"Nuts, brazilnuts, raw",category:"Nuts and beans",portion:"1 oz",pw:28, p:15.03684, f:57.43, c:21.64216, fbr:5.984, g:0},
+{name:"Nuts, cashew nuts, raw",category:"Nuts and beans",portion:"1 oz",pw:28, p:17.4423, f:38.86, c:36.2887, fbr:4.104, g:0},
+{name:"Nuts, hazelnuts or filberts, raw",category:"Nuts and beans",portion:"1 oz",pw:28, p:13.4938, f:53.49, c:26.5012, fbr:8.41, g:0},
+{name:"Nuts, macadamia nuts, raw",category:"Nuts and beans",portion:"1 oz",pw:28, p:7.7857, f:64.93, c:24.0943, fbr:7.563, g:0},
+{name:"Nuts, pecans, halves, raw",category:"Nuts and beans",portion:"1 oz",pw:28, p:9.9587, f:73.28, c:12.6993, fbr:5.793, g:0},
+{name:"Nuts, pine nuts, raw",category:"Nuts and beans",portion:"1 oz",pw:28, p:15.7039, f:61.27, c:18.5921, fbr:3.941, g:0},
+{name:"Nuts, pistachio nuts, raw",category:"Nuts and beans",portion:"1 oz",pw:28, p:20.5057, f:45.02, c:27.6943, fbr:6.969, g:0},
+{name:"Nuts, walnuts, English, halves, raw",category:"Nuts and beans",portion:"1 oz",pw:28, p:14.5644, f:69.74, c:10.9096, fbr:5.21, g:0},
+{name:"Seeds, pumpkin seeds (pepitas), raw",category:"Nuts and beans",portion:"1 oz",pw:28, p:29.9079, f:40.03, c:18.6751, fbr:5.079, g:0},
+{name:"Seeds, sunflower seed kernels, dry roasted, with salt added",category:"Nuts and beans",portion:"1 oz",pw:28, p:21, f:56.1, c:17.1, fbr:10.3, g:0},
+{name:"Seeds, sunflower seed, kernel, raw",category:"Nuts and beans",portion:"1 oz",pw:28, p:18.8733, f:48.44, c:24.5007, fbr:7.215, g:0},
+{name:"Sesame butter, creamy",category:"Oils and butters",portion:"2 tablespoon",pw:28, p:19.7054, f:62.4, c:14.179, fbr:8.372, g:0},
+{name:"Ham, sliced, restaurant",category:"Meats",portion:"1 slice",pw:16.2, p:19.6, f:3.68, c:2.36, fbr:0, g:0},
+{name:"Pork, cured, bacon, cooked, restaurant",category:"Meats",portion:"1 slice",pw:6.3, p:40.9, f:36.5, c:2.1, fbr:0, g:0},
+{name:"Pork, ground, raw",category:"Meats",portion:"3 oz",pw:85, p:17.80625, f:17.49, c:0, fbr:0, g:0},
+{name:"Pork, loin, boneless, raw",category:"Meats",portion:"8 oz",pw:226.666666666667, p:21.11875, f:9.469, c:0, fbr:0, g:0},
+{name:"Pork, loin, tenderloin, boneless, raw",category:"Meats",portion:"8 oz",pw:226.666666666667, p:21.58125, f:3.899, c:0, fbr:0, g:0},
+{name:"Chicken, breast, boneless, skinless, raw",category:"Meats",portion:"3.5 oz",pw:98, p:22.525, f:1.934, c:0, fbr:0, g:0},
+{name:"Chicken, broiler or fryers, breast, skinless, boneless, meat only, cooked, braised",category:"Meats",portion:"1 piece",pw:174, p:32.1, f:3.24, c:0, fbr:0, g:0},
+{name:"Chicken, broilers or fryers, drumstick, meat only, cooked, braised",category:"Meats",portion:"1 drumstick",pw:94.7, p:23.9, f:5.95, c:0, fbr:0, g:0},
+{name:"Chicken, ground, with additives, raw",category:"Meats",portion:"4 oz",pw:114, p:17.9125, f:7.161, c:0, fbr:0, g:0},
+{name:"Chicken, thigh, boneless, skinless, raw",category:"Meats",portion:"1 thigh",pw:126, p:18.6125, f:7.916, c:0, fbr:0, g:0},
+{name:"Turkey, ground, 93% lean, 7% fat, pan-broiled crumbles",category:"Meats",portion:"4 oz",pw:112, p:27.1, f:11.6, c:0, fbr:0, g:0},
+{name:"Turkey, ground, 93% lean/ 7% fat, raw",category:"Meats",portion:"4 oz",pw:112, p:17.34375, f:9.591, c:0, fbr:0, g:0},
+{name:"Frankfurter, beef, unheated",category:"Meats",portion:"1 piece",pw:48.6, p:11.7, f:28, c:2.89, fbr:0, g:0},
+{name:"Ham, sliced, pre-packaged, deli meat (96%fat free, water added)",category:"Meats",portion:"1 slice",pw:13.5, p:16.7, f:3.73, c:0.27, fbr:0, g:0},
+{name:"Sausage, breakfast sausage, beef, pre-cooked, unprepared",category:"Meats",portion:"1 link",pw:18.6, p:13.3, f:28.7, c:3.37, fbr:0, g:0},
+{name:"Sausage, Italian, pork, mild, cooked, pan-fried",category:"Meats",portion:"1 link",pw:86.6, p:18.2, f:26.2, c:2.15, fbr:0, g:0},
+{name:"Sausage, pork, chorizo, link or ground, cooked, pan-fried",category:"Meats",portion:"1 link",pw:80.4, p:19.3, f:28.1, c:2.63, fbr:0, g:0},
+{name:"Sausage, turkey, breakfast links, mild, raw",category:"Meats",portion:"1 link",pw:27.9, p:16.7, f:10.4, c:0.93, fbr:0, g:0},
+{name:"Mustard, prepared, yellow",category:"Condiments",portion:"1 teaspoon",pw:6, p:4.25, f:3.38, c:5.3, fbr:4.3, g:0.52},
+{name:"Sugars, granulated",category:"Condiments",portion:"1 teaspoon",pw:4, p:0, f:0.32, c:99.6, fbr:0, g:0.03},
+{name:"Beans, snap, green, canned, regular pack, drained solids",category:"Vegetables",portion:"1 cup",pw:129, p:1.04, f:0.39, c:4.11, fbr:0, g:0},
+{name:"Beans, snap, green, raw",category:"Vegetables",portion:"1 cup",pw:100, p:1.96875, f:0.275, c:7.41245, fbr:3.011, g:0},
+{name:"Beets, raw",category:"Vegetables",portion:"1 beet",pw:136, p:1.6875, f:0.3025, c:8.787, fbr:3.119, g:0},
+{name:"Broccoli, raw",category:"Vegetables",portion:"1 cup",pw:76, p:2.57, f:0.34, c:6.28, fbr:2.4, g:0},
+{name:"Brussels sprouts, raw",category:"Vegetables",portion:"10 sprouts",pw:62, p:3.984375, f:0.565, c:9.615625, fbr:4.785, g:0},
+{name:"Cabbage, bok choy, raw",category:"Vegetables",portion:"1 cup",pw:74, p:1.02375, f:0.2338, c:3.51495, fbr:1.259, g:0},
+{name:"Cabbage, green, raw",category:"Vegetables",portion:"1 cup",pw:89, p:0.96125, f:0.2275, c:6.38375, fbr:0, g:0},
+{name:"Cabbage, red, raw",category:"Vegetables",portion:"1 cup",pw:89, p:1.2425, f:0.2138, c:6.7899, fbr:0, g:0},
+{name:"Carrots, baby, raw",category:"Vegetables",portion:"5 carrots",pw:86.6666666666667, p:0.805, f:0.1375, c:9.0787, fbr:2.694, g:0},
+{name:"Carrots, frozen, unprepared",category:"Vegetables",portion:"0.5 cup",pw:57, p:0.81, f:0.47, c:7.92, fbr:3.2, g:0},
+{name:"Carrots, mature, raw",category:"Vegetables",portion:"1 carrot",pw:61, p:0.94125, f:0.3506, c:10.26755, fbr:3.095, g:0},
+{name:"Cauliflower, raw",category:"Vegetables",portion:"1 cup",pw:77, p:1.640625, f:0.2375, c:4.723075, fbr:1.948, g:0},
+{name:"Celery, raw",category:"Vegetables",portion:"1 celery",pw:33, p:0.4921875, f:0.1625, c:3.3165125, fbr:0, g:0},
+{name:"Collards, raw",category:"Vegetables",portion:"1 cup",pw:70, p:2.96875, f:0.77, c:7.02225, fbr:3.816, g:0},
+{name:"Cucumber, with peel, raw",category:"Vegetables",portion:"0.5 cucumber",pw:64, p:0.625, f:0.1775, c:2.9525, fbr:0, g:0},
+{name:"Eggplant, raw",category:"Vegetables",portion:"1 cup",pw:82, p:0.851875, f:0.12, c:5.399325, fbr:2.448, g:0},
+{name:"Flour, cassava",category:"Carbs and flours",portion:"0.25 cup",pw:30, p:0.918225, f:0.4938, c:87.312975, fbr:6.2445, g:0},
+{name:"Flour, potato",category:"Carbs and flours",portion:"0.25 cup",pw:30, p:8.1125, f:0.9513, c:79.9422, fbr:10.9755, g:0},
+{name:"Garlic, raw",category:"Vegetables",portion:"1 clove",pw:3, p:6.62, f:0.38, c:28.2, fbr:2.7, g:0},
+{name:"Kale, frozen, cooked, boiled, drained, without salt",category:"Vegetables",portion:"1 cup",pw:118, p:2.94, f:1.21, c:5.3, fbr:0, g:0},
+{name:"Kale, raw",category:"Vegetables",portion:"1 cup",pw:20.6, p:2.92, f:1.49, c:4.42, fbr:4.1, g:0},
+{name:"Ketchup, restaurant",category:"Condiments",portion:"1 tablespoon",pw:15, p:1.11, f:0.55, c:26.8, fbr:0, g:0},
+{name:"Lettuce, cos or romaine, raw",category:"Vegetables",portion:"1 bunch",pw:581, p:1.24, f:0.26, c:3.24, fbr:1.8, g:0},
+{name:"Lettuce, iceberg, raw",category:"Vegetables",portion:"2 cup",pw:15, p:0.7425, f:0.07375, c:3.36875, fbr:0, g:0},
+{name:"Lettuce, leaf, green, raw",category:"Vegetables",portion:"1 cup",pw:20, p:1.09375, f:0.1563, c:4.06615, fbr:0, g:0},
+{name:"Lettuce, leaf, red, raw",category:"Vegetables",portion:"1 cup",pw:20, p:0.883125, f:0.1063, c:3.260575, fbr:0, g:0},
+{name:"Lettuce, romaine, green, raw",category:"Vegetables",portion:"1 cup",pw:19, p:0.976875, f:0.07125, c:4.055575, fbr:0, g:0},
+{name:"Mushroom, beech",category:"Vegetables",portion:"0.5 cup",pw:42, p:2.18, f:0.4494, c:6.7593, fbr:3.139, g:0},
+{name:"Mushroom, crimini",category:"Vegetables",portion:"0.5 cup",pw:42, p:3.09375, f:0.1967, c:4.01455, fbr:1.781, g:0},
+{name:"Mushroom, enoki",category:"Vegetables",portion:"0.25 cup",pw:10, p:2.416875, f:0.245, c:8.141425, fbr:2.945, g:0},
+{name:"Mushroom, king oyster",category:"Vegetables",portion:"1 mushroom",pw:50, p:2.40625, f:0.3075, c:8.50065, fbr:3.009, g:0},
+{name:"Mushroom, lion's mane",category:"Vegetables",portion:"0.25 cup",pw:10, p:2.5, f:0.2563, c:7.5897, fbr:4.376, g:0},
+{name:"Mushroom, maitake",category:"Vegetables",portion:"0.5 cup",pw:42, p:2.203125, f:0.265, c:6.604375, fbr:3.071, g:0},
+{name:"Mushroom, oyster",category:"Vegetables",portion:"0.5 cup",pw:42, p:2.89875, f:0.1875, c:6.94125, fbr:2.85, g:0},
+{name:"Mushroom, pioppini",category:"Vegetables",portion:"0.5 cup",pw:42, p:3.5, f:0.24, c:5.7637, fbr:2.753, g:0},
+{name:"Mushroom, portabella",category:"Vegetables",portion:"0.5 cup",pw:42, p:2.75, f:0.3117, c:4.6583, fbr:1.879, g:0},
+{name:"Mushrooms, shiitake",category:"Vegetables",portion:"0.5 cup",pw:42, p:2.414375, f:0.195, c:8.170625, fbr:4.166, g:0},
+{name:"Mushrooms, white button",category:"Vegetables",portion:"0.5 cup",pw:42, p:2.890625, f:0.3708, c:4.079375, fbr:1.717, g:0},
+{name:"Onion rings, breaded, par fried, frozen, prepared, heated in oven",category:"Vegetables",portion:"1 piece",pw:20.2, p:4.52, f:14.4, c:36.3, fbr:2.4, g:0},
+{name:"Onions, red, raw",category:"Vegetables",portion:"1 onion",pw:197, p:0.94, f:0.1, c:9.93, fbr:3.085, g:0},
+{name:"Onions, white, raw",category:"Vegetables",portion:"1 onion",pw:149, p:0.89, f:0.13, c:7.68, fbr:1.2, g:0.03},
+{name:"Onions, yellow, raw",category:"Vegetables",portion:"1 onion",pw:143, p:0.83, f:0.05, c:8.61, fbr:2.305, g:0},
+{name:"Peas, green, sweet, canned, sodium added, sugar added, drained and rinsed",category:"Vegetables",portion:"0.5 cup",pw:114, p:4.734375, f:1.153, c:12.707625, fbr:5.95, g:0},
+{name:"Peppers, bell, green, raw",category:"Vegetables",portion:"0.5 pepper",pw:40, p:0.715, f:0.1063, c:4.7781, fbr:0.9419, g:0},
+{name:"Peppers, bell, orange, raw",category:"Vegetables",portion:"0.5 pepper",pw:40, p:0.881875, f:0.1556, c:6.703125, fbr:0.9674, g:0},
+{name:"Peppers, bell, red, raw",category:"Vegetables",portion:"0.5 pepper",pw:40, p:0.895625, f:0.1256, c:6.653175, fbr:1.158, g:0},
+{name:"Peppers, bell, yellow, raw",category:"Vegetables",portion:"0.5 pepper",pw:40, p:0.819375, f:0.1211, c:6.601725, fbr:1.071, g:0},
+{name:"Pickles, cucumber, dill or kosher dill",category:"Vegetables",portion:"1 spear",pw:40.4, p:0.48, f:0.43, c:1.99, fbr:1, g:0},
+{name:"Potatoes, gold, without skin, raw",category:"Vegetables",portion:"1 potato",pw:148, p:1.8125, f:0.2638, c:15.9624, fbr:13.83, g:0},
+{name:"Potatoes, red, without skin, raw",category:"Vegetables",portion:"1 potato",pw:148, p:2.0625, f:0.2475, c:16.27, fbr:13.79, g:0},
+{name:"Potatoes, russet, without skin, raw",category:"Vegetables",portion:"1 potato",pw:148, p:2.27375, f:0.36, c:17.77125, fbr:14.93, g:0},
+{name:"Spinach, baby",category:"Vegetables",portion:"1 cup",pw:30, p:2.851875, f:0.6188, c:2.406325, fbr:1.558, g:0},
+{name:"Spinach, mature",category:"Vegetables",portion:"1 cup",pw:30, p:2.90625, f:0.6044, c:2.64135, fbr:1.588, g:0},
+{name:"Squash, winter, acorn, raw",category:"Vegetables",portion:"1 cup",pw:96, p:1.25, f:0.1825, c:10.48, fbr:2.635, g:0},
+{name:"Squash, winter, butternut, raw",category:"Vegetables",portion:"1 cup",pw:96, p:1.14875, f:0.1675, c:10.50745, fbr:1.959, g:0},
+{name:"Sweet potatoes, orange flesh, without skin, raw",category:"Vegetables",portion:"0.5 cup",pw:114, p:1.578125, f:0.375, c:17.327875, fbr:4.441, g:0},
+{name:"Tomato juice, with added ingredients, from concentrate, shelf stable",category:"Vegetables",portion:"1 glass",pw:240, p:0.859375, f:0.2875, c:4.320625, fbr:0, g:0},
+{name:"Tomato, paste, canned, without salt added",category:"Vegetables",portion:"1 tablespoon",pw:16, p:4.234375, f:0.7325, c:20.188125, fbr:4.704, g:0},
+{name:"Tomato, puree, canned",category:"Vegetables",portion:"0.5 cup",pw:120, p:1.578125, f:0.265, c:8.036875, fbr:1.971, g:0},
+{name:"Tomato, roma",category:"Vegetables",portion:"1 tomato",pw:123, p:0.695625, f:0.425, c:3.837475, fbr:0.9706, g:0},
+{name:"Tomato, sauce, canned, with salt added",category:"Vegetables",portion:"0.5 cup",pw:120, p:1.351875, f:0.3825, c:6.331625, fbr:1.636, g:0},
+{name:"Tomatoes, canned, red, ripe, diced",category:"Vegetables",portion:"1 cup",pw:245, p:0.84, f:0.5, c:3.32, fbr:0, g:0},
+{name:"Tomatoes, crushed, canned",category:"Vegetables",portion:"0.5 cup",pw:120, p:1.4375, f:0.3975, c:7.137, fbr:1.944, g:0},
+{name:"Tomatoes, grape, raw",category:"Vegetables",portion:"5 tomatoes",pw:49.7, p:0.83, f:0.63, c:5.51, fbr:2.1, g:0},
+{name:"Tomatoes, whole, canned, solids and liquids, with salt added",category:"Vegetables",portion:"0.5 cup",pw:140, p:0.8675, f:0.2063, c:4.2874, fbr:0.8725, g:0},
+{name:"Spaghetti, dry",category:"Carbs and flours",portion:"1 cup",pw:91, p:13, f:1.51, c:74.7, fbr:3.2, g:0},
+{name:"Elbow pasta, dry",category:"Carbs and flours",portion:"1 cup",pw:122, p:13, f:1.51, c:74.7, fbr:3.2, g:0},
+{name:"Penne pasta, dry",category:"Carbs and flours",portion:"1 cup",pw:95, p:13, f:1.51, c:74.7, fbr:3.2, g:0},
+{name:"Rotini pasta, dry",category:"Carbs and flours",portion:"1 cup",pw:96, p:13, f:1.51, c:74.7, fbr:3.2, g:0},
+{name:"Avocados",category:"Vegetables",portion:"0.5 avocado",pw:107.5, p:2, f:14.7, c:8.53, fbr:6.7, g:0.1},
+
+];
+
+// Calculate the new variables
+data.forEach(d => {
+  d.nc = Math.max(d.c-d.fbr, 0);
+
+  // Calculate energy per 100g
+  d.p_calories = d.p * 4.0;
+  d.f_calories = d.f * 9.0;
+  d.c_calories = d.c * 4.0;
+  d.nc_calories = d.nc * 4.0;
+  
+  // Calculate quantity per serving
+  d.p_serving = d.p / 100.0 * d.pw;
+  d.f_serving = d.f / 100.0 * d.pw;
+  d.c_serving = d.c / 100.0 * d.pw;
+  d.nc_serving = d.nc / 100.0 * d.pw;
+  d.g_serving = d.g / 100.0 * d.pw;
+ 
+  // Calculate energy per serving
+  d.p_calories_serving = d.p_serving * 4.0;
+  d.f_calories_serving = d.f_serving * 9.0;
+  d.c_calories_serving = d.c_serving * 4.0;
+  d.nc_calories_serving = d.nc_serving * 4.0;
+
+  var total_calories = d.p_calories + d.f_calories + d.c_calories;
+  if (total_calories==0) {
+    d.p_percent = 33.333333333;
+    d.f_percent = 33.333333333;
+    d.c_percent = 33.333333333;
+  } else {
+    d.p_percent = d.p_calories / total_calories *100.0;
+    d.f_percent = d.f_calories / total_calories *100.0;
+    d.c_percent = d.c_calories / total_calories *100.0;
+  }
+  total_netcalories = d.p_calories + d.f_calories + d.nc_calories;
+  if (total_calories==0) {
+    d.p_netpercent = 33.333333333;
+    d.f_netpercent = 33.333333333;
+    d.c_netpercent = 33.333333333;
+  } else {
+    d.p_netpercent = d.p_calories / total_netcalories *100.0;
+    d.f_netpercent = d.f_calories / total_netcalories *100.0;
+    d.c_netpercent = d.nc_calories / total_netcalories *100.0;
+  }
+
+  switch (d.category) {
+  case "Carbs and flours": d.color = "#FFECD1"; break;
+  case "Meats": d.color = "#F00000"; break;
+  case "Beverages": d.color = "#0080FF"; break;
+  case "Dairy and eggs": d.color = "#F2F2F2"; break;
+  case "Oils and butters": d.color = "#FFFF00"; break;
+  case "Seafood": d.color = "#FEBEA4"; break;
+  case "Fruits": d.color = "#FF8000"; break;
+  case "Nuts and beans": d.color = "#AD5430"; break;
+  case "Condiments": d.color = "#7F7F7F"; break;
+  case "Vegetables": d.color = "#00FF50"; break;
+  default: d.color = "#000000";
+  }
+  d.outlinecolor = (d.c_percent >= 0.3*100 ? "#FF0000" : "#008000");
+
+  // Calculate coordinates
+  d.x =  1/Math.sqrt(2)*(+d.p_percent - d.f_percent);
+  d.y =  1/Math.sqrt(6)*(-d.p_percent - d.f_percent + 2*d.c_percent);
+  d.x_net =  1/Math.sqrt(2)*(+d.p_netpercent - d.f_netpercent);
+  d.y_net =  1/Math.sqrt(6)*(-d.p_netpercent - d.f_netpercent + 2*d.c_netpercent);
+  
+  // Convert triangle coordinates to circle
+  var tmpangle = Math.atan2(d.y, d.x)*180/Math.PI;
+  var tmpangle2 = (((tmpangle+390) % 120) - 60)/180*Math.PI;  // mod(angle + 390,120)-60
+  var tmpscale = 2.0 / (Math.sqrt( (Math.tan(tmpangle2)**2) +1));
+  d.circ_x = d.x * tmpscale;
+  d.circ_y = d.y * tmpscale;
+
+  tmpangle = Math.atan2(d.y_net, d.x_net)*180/Math.PI;
+  tmpangle2 = (((tmpangle+390) % 120) - 60)/180*Math.PI;  // mod(angle + 390,120)-60
+  tmpscale = 2.0 / (Math.sqrt( (Math.tan(tmpangle2)**2) +1));
+  d.circ_x_net = d.x_net*tmpscale;
+  d.circ_y_net = d.y_net*tmpscale;
+
+  d.size = d.p_calories + d.f_calories + d.c_calories;
+  d.size_net = d.p_calories + d.f_calories + d.nc_calories;
+
+  d.size_serving = d.p_calories_serving + d.f_calories_serving + d.c_calories_serving;
+  d.size_serving_net = d.p_calories_serving + d.f_calories_serving + d.nc_calories_serving;
+
+  d.opacity = 1; // show all
+});
+
+//------------------------------------------------
+// Canvas
+const width = 800;
+const height = 800;
+svg = d3.select("#chart")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+function set_showTriangleMap() {
+  document.getElementById('toggle_circlemap').innerText = (showTriangleMap) ? 'Triangle map' : 'Circle map';
+}
+function set_showPerServing() {
+  document.getElementById('toggle_perserving').innerText = (showPerServing) ? 'Amount per serving' : 'Amount per 100g';
+}
+function set_showNetCarbs() {
+  document.getElementById('toggle_netcarbs').innerText = (showNetCarbs) ? 'Net carbs' : 'Total carbs';
+}
+
+//------------------------------------------------
+// Toggle and drop down buttons
+document.getElementById('toggle_circlemap').addEventListener('click', function() {
+            showTriangleMap = !showTriangleMap;
+            set_showTriangleMap();
+            createBubbleChart();
+});
+document.getElementById('toggle_perserving').addEventListener('click', function() {
+            showPerServing = !showPerServing;
+            set_showPerServing();
+            createBubbleChart();
+});
+document.getElementById('toggle_netcarbs').addEventListener('click', function() {
+            showNetCarbs = !showNetCarbs;
+            set_showNetCarbs();
+            createBubbleChart();
+});
+const dropdown = document.getElementById('show_categories');
+dropdown.addEventListener('change', function() {
+  showCategory = dropdown.value;   
+  if (showCategory=="Show all") {
+    data.forEach(d => { d.opacity = 1; });
+  } else {
+    data.forEach(d => {  d.opacity = ( d.category == showCategory ? 1 : 0.05 ); });
+  }
+  createBubbleChart();
+});
+
+//------------------------------------------------
+// Function to draw bubble chart
+function createBubbleChart() {
+
+  // Define scales
+  xMax = d3.max([-d3.min(data, d => (showNetCarbs ? d.x_net : d.x)), d3.max(data, d => (showNetCarbs ? d.x_net : d.x))]);
+  yMax = d3.max([-d3.min(data, d => (showNetCarbs ? d.y_net : d.y)), d3.max(data, d => (showNetCarbs ? d.y_net : d.y))]);
+  const xScale = d3.scaleLinear()
+                  .domain([-xMax, xMax])
+                  .range([100, width - 100]);
+
+  const yScale = d3.scaleLinear()
+                  .domain([-yMax, yMax])
+                  .range([height - 100, 100]);
+
+  const radiusScale = d3.scaleSqrt()
+                       .domain(d3.extent(data, d => showPerServing ? d.size_serving : d.size))
+                       .range([2, 10]);
+
+  // Add axes (optional)
+//  svg.append("g")
+//    .attr("class", "x-axis")
+//    .attr("transform", `translate(0, ${height - 50})`)
+//    .call(d3.axisBottom(xScale));
+//  svg.append("g")
+//    .attr("class", "y-axis")
+//    .attr("transform", `translate(${50}, 0)`)
+//    .call(d3.axisLeft(yScale));   
+
+  // Remove prior  
+  svg.selectAll("path").remove();
+  svg.selectAll("text").remove();
+  svg.selectAll("circle").remove();
+  
+  // Boundaries
+  ax1 =  0;
+  ay1 =  2/Math.sqrt(6)*(100);
+  ax2 =  1/Math.sqrt(2)*(100);
+  ay2 =  -1/Math.sqrt(6)*(100);
+  const linegeneration = d3.line()
+    .x(d => xScale(d.x))
+    .y(d => yScale(d.y));
+  if (showTriangleMap) {
+    linedata = [
+      { x:ax1, y:ay1},
+      { x:ax2, y:ay2},
+      { x:-ax2, y:ay2},
+      { x:ax1, y:ay1},
+    ];
+  } else {
+     const n = 100; // Number of points for the ellipse
+     linedata  = [];
+     for (let i = 0; i <= n; i++) {
+      const angle = (i / n) * 2 * Math.PI;
+      const x = ay1 * Math.cos(angle);
+      const y = ay1 * Math.sin(angle);
+      linedata.push({ x, y });
+     }
+  }
+  svg.append("path")
+      .datum(linedata)
+      .attr("d", linegeneration)
+      .attr("stroke", "grey") // Initial line color
+      .attr("stroke-width", 2)
+      .attr("fill", "none");
+
+  // Add labels (optional, consider overlap handling)
+  const textData = [
+  { x: ax1*1.1, y: ay1*1.1, text: showNetCarbs ? "Net carbs" : "Carbs" },
+  { x: ax2*1.1, y: ay2*1.1, text: "Protein" },
+  { x: -ax2*1.1, y: ay2*1.1, text: "Fat" }
+  ];
+  svg.selectAll("text")
+  .data(textData)
+  .enter()
+  .append("text")
+  .attr("x", d => xScale(d.x))
+  .attr("y", d => yScale(d.y))
+  .text(d => d.text)
+  .attr("fill", "black")
+  .attr("text-anchor", "middle")
+  .style("font-weight", "bold");
+
+  // Create bubbles
+  bubbles = svg.selectAll("circle")
+                    .data(data)
+                    .enter()
+                    .append("circle")
+                    .on("mouseover", handleTooltip)
+                    .on("mousemove", handleTooltip)
+                    .on("mouseout", hideTooltip)
+                    .on("click", handleTooltip); // For detailed tooltip on click
+  bubbles	    .attr("cx", d => xScale(showTriangleMap ? (showNetCarbs ? d.x_net : d.x ):(showNetCarbs ? d.circ_x_net : d.circ_x)))
+                    .attr("cy", d => yScale(showTriangleMap ? (showNetCarbs ? d.y_net : d.y ):(showNetCarbs ? d.circ_y_net : d.circ_y)))
+                    .attr("r", d => radiusScale( showNetCarbs ? (showPerServing ? d.size_serving_net : d.size_net) : (showPerServing ? d.size_serving : d.size)))
+		    .attr("opacity", d => d.opacity)
+		    .attr("fill", d => d.color)
+                    .attr("stroke", d => (d.opacity==1 ? colorScale( showNetCarbs ? d.c_netpercent : d.c_percent) : "none")) // outline
+                    .attr("stroke-width", 1); // Set the outline width to 2 pixels
+}
+
+// Function to handle tooltip interactions
+function handleTooltip(event, d) {
+  const tooltip = d3.select("#tooltip");
+  if (`${d.opacity}`==1) {
+    tooltip.html(`<TABLE>
+<TR><TD COLSPAN=5><strong>${d.name}</strong></TD></TR>
+<TR><TD COLSPAN=5><FONT COLOR=#808080>${d.category}</FONT></TD></TR>
+<TR><TD>&nbsp;</TD><TD valign=bottom><B>Per 100g</B></TD><TD valign=bottom><B>Per serving</B><BR>(${d.portion}, ${d.pw.toFixed(1)}g)</TD><TD valign=bottom><B>% calories</B></TD><TD valign=bottom><B>% net calories</B></TD></TR>
+<TR><TD><B>Protein</B></TD><TD>${d.p.toFixed(2)}g</TD><TD>${d.p_serving.toFixed(2)}g</TD><TD>${d.p_percent.toFixed(1)}%</TD><TD>${d.p_netpercent.toFixed(1)}%</TD></TR>
+<TR><TD><B>Fat</B></TD><TD>${d.f.toFixed(2)}g</TD><TD>${d.f_serving.toFixed(2)}g</TD><TD>${d.f_percent.toFixed(1)}%</TD><TD>${d.f_netpercent.toFixed(1)}%</TD></TR>
+<TR><TD><B>Carbs</B></TD><TD>${d.c.toFixed(2)}g</TD><TD>${d.c_serving.toFixed(2)}g</TD><TD><B>${d.c_percent.toFixed(1)}%</B></TD><TD>-</TD></TR>
+<TR><TD><B>Net carbs</B></TD><TD>${d.nc.toFixed(2)}g</TD><TD>${d.nc_serving.toFixed(2)}g</TD><TD>-</TD><TD><B>${d.c_netpercent.toFixed(1)}%</B></TD></TR>
+<TR><TD><B>Galactose</B></TD><TD>${d.g.toFixed(2)}g</TD><TD>${d.g_serving.toFixed(2)}g</TD><TD>-</TD><TD>-</TD></TR>
+</TABLE>`)
+     .style("left", (event.pageX + 10) + "px")
+     .style("top", (event.pageY - 20) + "px")
+    .transition().duration(0).style("opacity", 1);
+  }
+}
+
+function testLabel() {
+  const tooltip = d3.select("#tooltip");
+  tooltip.html("CLICKED")
+  .style("left", (10) + "px")
+  .style("top", (20) + "px")
+  .transition().duration(0).style("opacity", 1);
+}
+
+// Function to hide the tooltip
+function hideTooltip() {
+  d3.select("#tooltip").transition().duration(0).style("opacity", 0);
+}
+
+// Set up toggles
+set_showTriangleMap();
+set_showPerServing();
+set_showNetCarbs();
+ 
+// Create the bubble chart
+createBubbleChart();
+
+</script>
+</html>
