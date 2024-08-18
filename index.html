@@ -51,32 +51,10 @@
 .hidden {
   display: none;
 }
-.dropdown-menu {
-  display: none;
-  position: absolute;
-  background-color: #f9f9f9;
-  min-width: 160px;
-  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-  z-index: 1;
-}
+
 a:hover {color: red;}
 a { color: black; text-decoration: none;}
-.dropdown-menu   
- li {
-  cursor: pointer;
-  padding: 12px 16px;
-  text-decoration: none;
-  display: block;
-  text-align: left;
-}
 
-.dropdown-menu li:hover {
-  background-color: #f1f1f1;
-}
-
-#dropdownButton:hover .dropdown-menu {
-  display: block;
-}
 </style>
 </head>
 
@@ -88,8 +66,9 @@ a { color: black; text-decoration: none;}
   <button id="toggle_netcarbs"></button>
   </TD></TR>
   <TR>
-  <TD width=85%><div id="chart"></div><BR><FONT COLOR=#A0A0A0>Source: <A HREF=https://fdc.nal.usda.gov/fdc-app.html>USDA FoodData Central</A></FONT></TD>
+  <TD width=85% align=middle><div id="chart"></div></TD>
   <TD valign=top width=15%><div id="category-container"></div></TD></TR>
+  <TR><TD colspan=2><FONT COLOR=#A0A0A0>Source: <A HREF=https://fdc.nal.usda.gov/fdc-app.html>USDA FoodData Central</A></FONT></TD></TR>
   <TR><TD colspan=2><div id="table-container"></div></TD></TR>
   </TABLE>
   <div id="tooltip"></div>
@@ -659,9 +638,9 @@ function createBubbleChart() {
                     .data(data)
                     .enter()
                     .append("circle")
-                    .on("mouseover", handleTooltip )
-                    .on("mousemove", handleTooltip )
-                    .on("click"    , handleTooltip ) // For detailed tooltip on click
+                    .on("mouseover", showTooltip )
+                    .on("mousemove", showTooltip )
+                    .on("click"    , showTooltipDeeper ) // For detailed tooltip on click
      	            .on("mouseout" , hideTooltip   )
                     .attr("cx", d => xScale(showTriangleMap ? (showNetCarbs ? d.x_net : d.x ):(showNetCarbs ? d.circ_x_net : d.circ_x)))
                     .attr("cy", d => yScale(showTriangleMap ? (showNetCarbs ? d.y_net : d.y ):(showNetCarbs ? d.circ_y_net : d.circ_y)))
@@ -688,9 +667,9 @@ function createBubbleChart() {
                     .data(data_filtered )
                     .enter()
                     .append("circle")
-                    .on("mouseover", handleTooltip )
-                    .on("mousemove", handleTooltip )
-                    .on("click"    , handleTooltip ) // For detailed tooltip on click
+                    .on("mouseover", showTooltip )
+                    .on("mousemove", showTooltip )
+                    .on("click"    , showTooltipDeeper ) // For detailed tooltip on click
      	            .on("mouseout" , hideTooltip   )
                     .attr("cx", d => xScale(showTriangleMap ? (showNetCarbs ? d.x_net : d.x ):(showNetCarbs ? d.circ_x_net : d.circ_x)))
                     .attr("cy", d => yScale(showTriangleMap ? (showNetCarbs ? d.y_net : d.y ):(showNetCarbs ? d.circ_y_net : d.circ_y)))
@@ -801,11 +780,11 @@ function sortTable(tableid,columnIndex, ascending = true) {
 }
 
 // Function to handle tooltip interactions
-function handleTooltip(event, d) {
+function showTooltip(event, d) {
   const tooltip = d3.select("#tooltip");
   const color1 = colorScale(`${d.c_percent}`);
   const color2 = colorScale(`${d.c_netpercent}`);
-  if (`${d.opacity}`==1) {
+  if (d.opacity==1) {
     tooltip.html(`<TABLE class=tooltip>
 <TR><TD COLSPAN=5><strong>${d.name}</strong></TD></TR>
 <TR><TD COLSPAN=5><FONT COLOR=#808080>${d.category}</FONT></TD></TR>
@@ -818,12 +797,22 @@ function handleTooltip(event, d) {
 </TABLE>`)
      .style("left", (event.pageX + 10) + "px")
      .style("top", (event.pageY - 20) + "px")
-     .transition().duration(10).style("opacity", 1)    
-     .transition().duration(10).style("display", null);
+     .style("display", null)
+     .style("opacity", 1);
   }
 }
+function showTooltipDeeper(event, d) {
+  showTooltip(event, d);
+  if (highlightFood==null) {
+    highlightFood=d.name;
+  } else {
+    highlightFood=null;
+  }
+  updateOpacity();
+  updateGraphics();
+}
 
-function debugmessage(testmessage) {
+function testLabel(testmessage) {
   const tooltip = d3.select("#tooltip");
   tooltip.html("TEST MESSAGE: " + testmessage)
   .style("left", (10) + "px")
@@ -835,8 +824,8 @@ function debugmessage(testmessage) {
 // Function to hide the tooltip
 function hideTooltip() {
   d3.select("#tooltip") 
-    .transition().duration(10).style("opacity", 0)
-    .transition().duration(10).style("display", "none");
+    .style("opacity", 0)
+    .style("display", "none");
 
 }
 
@@ -844,7 +833,6 @@ function hideTooltip() {
 set_showTriangleMap();
 set_showPerServing();
 set_showNetCarbs();
- 
 updateGraphics();
 
 </script>
