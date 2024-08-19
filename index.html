@@ -59,7 +59,7 @@ a { color: black; text-decoration: none;}
 <body>
   <table width=100% class="layout"><TR>
   <TD colspan=2>
-  <P onmouseover="showHelpInfo(event)"><FONT SIZE="+2">Food PFC map &#9432;</FONT></P>
+  <FONT SIZE="+2">Food PFC map <A onclick="showHelpInfo(event)" onmouseover="showHelpInfo(event)">&#9432;</FONT></A><BR>
   <button id="toggle_perserving"></button>
   <button id="toggle_netcarbs"></button>
   </TD></TR>
@@ -486,6 +486,7 @@ svg = d3.select("#chart")
                 .append("svg")
                 .attr("width", width)
                 .attr("height", height);
+
 function set_showShapeMap() {
   if (showShapeMap=="triangle") {
     document.getElementById('toggle_shapemap').innerText = 'Triangle map';
@@ -582,9 +583,12 @@ function updateGraphics() {
 function updateBubbleChart() {
 
   // Define scales
-  const xExtent = d3.extent(data, d => (showShapeMap=='triangle' ? (showNetCarbs ? d.x_net : d.x) : (showShapeMap=='circle' ? (showNetCarbs ? d.circ_x_net : d.circ_x) : (showNetCarbs ? d.sqr_x_net : d.sqr_x))) );
-  const yExtent = d3.extent(data, d => (showShapeMap=='triangle' ? (showNetCarbs ? d.y_net : d.y) : (showShapeMap=='circle' ? (showNetCarbs ? d.circ_y_net : d.circ_y) : (showNetCarbs ? d.sqr_y_net : d.sqr_y))) );
-
+  const xExtent = d3.extent(data, d => (showShapeMap=='triangle' ? (showNetCarbs ? d.x_net      : d.x) 
+                                     : (showShapeMap=='circle'   ? (showNetCarbs ? d.circ_x_net : d.circ_x) 
+                                                                 : (showNetCarbs ? d.sqr_x_net  : d.sqr_x))) );
+  const yExtent = d3.extent(data, d => (showShapeMap=='triangle' ? (showNetCarbs ? d.y_net      : d.y) 
+                                     : (showShapeMap=='circle'   ? (showNetCarbs ? d.circ_y_net : d.circ_y) 
+                                                                 : (showNetCarbs ? d.sqr_y_net  : d.sqr_y))) );
   const xScale = d3.scaleLinear()
                   .domain(xExtent)
                   .range([100, width - 100]);
@@ -600,8 +604,7 @@ function updateBubbleChart() {
   svg.attr("width", 800)
         .attr("height", 800)
         .attr("fill","#ff8080");
-        //.on("click", unselectAll ); // For detailed tooltip on click
-     	            
+          	            
   //svg.selectAll("path").remove();
   //svg.selectAll("text").remove();
   //svg.selectAll("circle").remove();
@@ -916,11 +919,13 @@ function showHelpInfo(event) {
 + "<LI>Foods closer to the top have more carbohydrates, so large circles on the top are not favorable</LI>"
 + "<LI>\"Net carbs\" are calculated by subtracting dietary fibers from carbs, as fibers are not digested</LI>"
 + "<LI>Data are from <A HREF=https://fdc.nal.usda.gov/fdc-app.html>USDA FoodData Central</A></LI></UL>")
-     .style("left", (event.pageX + 10) + "px")
-     .style("top", (event.pageY - 20) + "px")
+     //.style("left", (event.pageX + 10) + "px")
+     //.style("top", (event.pageY - 20) + "px")
+     .style("left", (event.pageX) + "px")
+     .style("top", (event.pageY) + "px")
      .style("display", null)
-     .style("opacity", 1);
-
+     .style("opacity", 1)
+     .on("mouseleave" , hideTooltip);
 }
 
 function pickFood(event, d) {
