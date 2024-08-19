@@ -94,7 +94,7 @@ let svg;
 //------------------------------------------------
 // Create a color scale
 const colorScale = d3.scaleThreshold()
-  .domain([0, carb_lo_threshold, carb_lo_threshold*0.5+carb_hi_threshold*0.5, carb_hi_threshold, 100])
+  .domain([0, carb_lo_threshold, carb_hi_threshold-0.0001, carb_hi_threshold, 100])
   .range(["#00C000", "#00C000", "#F0C000", "#FF0000", "#FF0000"]);
 
 //------------------------------------------------
