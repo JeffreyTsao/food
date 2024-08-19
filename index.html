@@ -529,7 +529,7 @@ document.getElementById('toggle_netcarbs').addEventListener('click', function() 
 //------------------------------------------------
 const viewcategories = ['Show all', 'Beverages', 'Carbs and flours', 'Condiments', 'Dairy food and eggs', 'Fruits', 'Meats', 'Nuts and beans', 'Oils and butters', 'Seafood', 'Vegetables'];
 
-function createRadioButtons(options, container) {
+function createCategoryButtons(options, container) {
   options.forEach((option, index) => {
     const input = document.createElement('input');
     input.type = 'radio';
@@ -544,13 +544,14 @@ function createRadioButtons(options, container) {
     container.appendChild(label);
   });
 }
-function handleRadioButtonChange() {
+function changeCategory() {
   const selectedOption = document.querySelector('input[name="option"]:checked').value;
   showCategory = selectedOption;
   highlightFood=null;
   hideTooltip();
   updateOpacity();
   updateGraphics();
+  sortTable("nutrienttable",0,true);
 }
 function updateOpacity() {
   if (highlightFood==null) {
@@ -567,10 +568,10 @@ function updateOpacity() {
     }
   }
 }
-createRadioButtons(viewcategories, document.getElementById('category-container'));
+createCategoryButtons(viewcategories, document.getElementById('category-container'));
 const radioButtons = document.querySelectorAll('input[name="option"]');
 radioButtons.forEach(radioButton => {
-  radioButton.addEventListener('change', handleRadioButtonChange);
+  radioButton.addEventListener('change', changeCategory);
 });
 
 function updateGraphics() {
