@@ -371,6 +371,8 @@ const data = [
 {name:"Soy sauce made from soy (tamari)",category:"Condiments",portion:"1 teaspoon",pw:6, p:10.5, f:0.1, c:5.57, fbr:0.8, g:0},
 {name:"Soy sauce made from soy and wheat (shoyu)",category:"Condiments",portion:"1 teaspoon",pw:5.3, p:8.14, f:0.57, c:4.93, fbr:0.8, g:0},
 {name:"Soy sauce made from soy and wheat (shoyu), low sodium",category:"Condiments",portion:"1 teaspoon",pw:4.5, p:9.05, f:0.3, c:5.59, fbr:0.7, g:0.2},
+{name:"Margarine, margarine-like vegetable oil spread, 67-70% fat",category:"Oils and butters",portion:"1 tablespoon",pw:14, p:0.07, f:68.3, c:0.59, fbr:0, g:0},
+{name:"Margarine-like spread, BENECOL Light Spread",category:"Oils and butters",portion:"1 tablespoon",pw:14, p:0, f:38.7, c:5.71, fbr:0, g:0},
 
 ];
 
@@ -519,6 +521,7 @@ function handleRadioButtonChange() {
   const selectedOption = document.querySelector('input[name="option"]:checked').value;
   showCategory = selectedOption;
   highlightFood=null;
+  hideTooltip();
   updateOpacity();
   updateGraphics();
 }
@@ -569,7 +572,8 @@ function createBubbleChart() {
   svg.attr("width", 800)
         .attr("height", 800)
         .attr("fill","#ff8080");
-
+        //.on("click", unselectAll ); // For detailed tooltip on click
+     	            
   //svg.selectAll("path").remove();
   //svg.selectAll("text").remove();
   //svg.selectAll("circle").remove();
@@ -635,8 +639,57 @@ function createBubbleChart() {
   .attr("text-anchor", "middle")
   .style("font-weight", "bold");
 
-  // Create bubble
+  if (true) {
+    var n;
+    if (showTriangleMap) {
+      n=1;
+    } else {
+      n=100;
+    }
+    var tmp_c, tmp_dash1, tmp_dash2;
 
+    for(let j=0; j<=1; j++) {
+      if (j==0) {
+        tmp_c=carb_hi_threshold;
+        tmp_dash=1;
+        tmp_color="red";
+      } else {
+        tmp_c=carb_lo_threshold;
+        tmp_dash=5;
+        tmp_color="green";
+      }
+      linedata2  = [];
+      for (let i = 0; i <= n; i++) {
+        tmp_p = (i / n) * (100-tmp_c);
+        tmp_f = (1 - i/n) * (100-tmp_c);
+
+        // Calculate coordinates
+        x =  1/Math.sqrt(2)*(+tmp_p - tmp_f);
+        y =  1/Math.sqrt(6)*(-tmp_p - tmp_f + 2*tmp_c);
+  
+        // Convert triangle coordinates to circle
+        if (showTriangleMap == false) {
+          var tmpangle = Math.atan2(y, x)*180/Math.PI;
+          var tmpangle2 = (((tmpangle+390) % 120) - 60)/180*Math.PI;  // mod(angle + 390,120)-60
+          var tmpscale = 2.0 / (Math.sqrt( (Math.tan(tmpangle2)**2) +1));
+          x = x * tmpscale;
+          y = y * tmpscale;
+        }
+        linedata2.push({ x, y });
+      }
+
+      svg.append("path")
+        .datum(linedata2)
+        .attr("d", linegeneration)
+        .attr("stroke", tmp_color)
+        .attr("stroke-width", 1)
+        .attr("stroke-dasharray", tmp_dash, tmp_dash)
+        .attr("fill", "none");
+    }
+  }
+
+
+  // Create bubble
   if (showCategory == "showAll") {
     bubbles = svg.selectAll("circle")
                     .data(data)
@@ -644,14 +697,14 @@ function createBubbleChart() {
                     .append("circle")
                     .on("mouseover", showTooltip )
                     .on("mousemove", showTooltip )
-                    .on("click"    , showTooltipDeeper ) // For detailed tooltip on click
+                    .on("click"    , pickFood ) // For detailed tooltip on click
      	            .on("mouseout" , hideTooltip   )
                     .attr("cx", d => xScale(showTriangleMap ? (showNetCarbs ? d.x_net : d.x ):(showNetCarbs ? d.circ_x_net : d.circ_x)))
                     .attr("cy", d => yScale(showTriangleMap ? (showNetCarbs ? d.y_net : d.y ):(showNetCarbs ? d.circ_y_net : d.circ_y)))
                     .attr("r", d => radiusScale( showNetCarbs ? (showPerServing ? d.size_serving_net : d.size_net) : (showPerServing ? d.size_serving : d.size)))
 		    .attr("opacity", d => d.opacity)
 		    .attr("fill", d => d.color)
-                    .attr("stroke", d => (d.opacity==1 ? colorScale( showNetCarbs ? d.c_netpercent : d.c_percent) : "none")) // outline
+                    .attr("stroke", d => (d.opacity==1 ? "grey" : "none")) // outline colorScale( showNetCarbs ? d.c_netpercent : d.c_percent) 
                     .attr("stroke-width", 1); // Set the outline width to 2 pixels
   } else {
     data_filtered = data.filter(d => d.opacity != 1);
@@ -673,16 +726,18 @@ function createBubbleChart() {
                     .append("circle")
                     .on("mouseover", showTooltip )
                     .on("mousemove", showTooltip )
-                    .on("click"    , showTooltipDeeper ) // For detailed tooltip on click
+                    .on("click"    , pickFood ) // For detailed tooltip on click
      	            .on("mouseout" , hideTooltip   )
                     .attr("cx", d => xScale(showTriangleMap ? (showNetCarbs ? d.x_net : d.x ):(showNetCarbs ? d.circ_x_net : d.circ_x)))
                     .attr("cy", d => yScale(showTriangleMap ? (showNetCarbs ? d.y_net : d.y ):(showNetCarbs ? d.circ_y_net : d.circ_y)))
                     .attr("r", d => radiusScale( showNetCarbs ? (showPerServing ? d.size_serving_net : d.size_net) : (showPerServing ? d.size_serving : d.size)))
 		    .attr("opacity", d => d.opacity)
 		    .attr("fill", d => d.color)
-                    .attr("stroke", d => colorScale( showNetCarbs ? d.c_netpercent : d.c_percent)) // outline
+                    .attr("stroke",  "grey") // outline
                     .attr("stroke-width", 1); // Set the outline width to 2 pixels
   }
+
+  svg.on("click", clickChart ); // For detailed tooltip on click
 }
 function createTable(){
   const container = document.getElementById("table-container");
@@ -805,7 +860,7 @@ function showTooltip(event, d) {
      .style("opacity", 1);
   }
 }
-function showTooltipDeeper(event, d) {
+function pickFood(event, d) {
   showTooltip(event, d);
   if (highlightFood==null) {
     highlightFood=d.name;
@@ -814,6 +869,17 @@ function showTooltipDeeper(event, d) {
   }
   updateOpacity();
   updateGraphics();
+}
+function clickChart(event, d) {
+ if (event.target.tagName == 'circle') {
+   pickFood(event,d);
+ } else {
+   highlightFood=null;
+   showCategory = "Show all";
+   hideTooltip();
+   updateOpacity();
+   updateGraphics();
+ }
 }
 
 function testLabel(testmessage) {
