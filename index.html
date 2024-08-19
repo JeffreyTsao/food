@@ -59,8 +59,7 @@ a { color: black; text-decoration: none;}
 <body>
   <table width=100% class="layout"><TR>
   <TD colspan=2>
-  <P><FONT SIZE="+2">Food PFC map</FONT><BR>
-  <FONT COLOR=#A0A0A0>PFC represents the macronutrients (Protein, Fat, and Carbohydrates). Each circle represents a food, with position indicating PFC proportions, and size indicating caloric density.</FONT></P>
+  <P onmouseover="showHelpInfo(event)"><FONT SIZE="+2">Food PFC map</FONT> &#9432;</P>
   <button id="toggle_perserving"></button>
   <button id="toggle_netcarbs"></button>
   </TD></TR>
@@ -444,7 +443,7 @@ data.forEach(d => {
   // Convert to square coordinates
   d.sqr_y = d.y;
   d.sqr_x = (d.c_percent == 100 ? 0:d.x*100.0/(100-d.c_percent));
-  d.sqr_y_net = d.y;
+  d.sqr_y_net = d.y_net;
   d.sqr_x_net = (d.c_netpercent == 100 ? 0:d.x_net*100.0/(100-d.c_netpercent))
 
   // Calculate circle coordinates
@@ -909,6 +908,20 @@ function showTooltip(event, d) {
      .style("opacity", 1);
   }
 }
+function showHelpInfo(event) {
+  const tooltip = d3.select("#tooltip");
+  tooltip.html("<UL><LI>PFC is an abbreviation for the key macronutrients: <B><U>P</B></U>rotein, <B><U>F</B></U>at, and <B><U>C</B></U>arbohydrates</LI>"
++ "<LI>Each circle is a food, with its position indicating the PFC proportions, and its size indicating caloric density</LI>"
++ "<LI>Foods closer to the top have more carbohydrates, so large circles on the top are not favorable</LI>"
++ "<LI>\"Net carbs\" are calculated by subtracting dietary fibers from carbs, as fibers are not digested</LI>"
++ "<LI>Data are from <A HREF=https://fdc.nal.usda.gov/fdc-app.html>USDA FoodData Central</A></LI></UL>")
+     .style("left", (event.pageX + 10) + "px")
+     .style("top", (event.pageY - 20) + "px")
+     .style("display", null)
+     .style("opacity", 1);
+
+}
+
 function pickFood(event, d) {
   showTooltip(event, d);
   if (highlightFood==null) {
