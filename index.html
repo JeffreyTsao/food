@@ -59,8 +59,8 @@ a { color: black; text-decoration: none;}
 <body>
   <table width=100% class="layout"><TR>
   <TD colspan=2>
-  <P><FONT SIZE="+2">Food macronutrient map</FONT><BR>
-  <FONT COLOR=#A0A0A0>Each circle represents a food; position indicates proportions of macronutrients (i.e., more carbs, protein, or fat); size indicates caloric density.</FONT></P>
+  <P><FONT SIZE="+2">Food PFC map</FONT><BR>
+  <FONT COLOR=#A0A0A0>PFC represents the macronutrients (Protein, Fat, and Carbohydrates). Each circle represents a food, with position indicating PFC proportions, and size indicating caloric density.</FONT></P>
   <button id="toggle_perserving"></button>
   <button id="toggle_netcarbs"></button>
   </TD></TR>
@@ -69,7 +69,7 @@ a { color: black; text-decoration: none;}
   <TD valign=top width=15%><div id="category-container"></div></TD></TR>
   <TR><TD>
   <FONT COLOR=#A0A0A0>Source: <A HREF=https://fdc.nal.usda.gov/fdc-app.html>USDA FoodData Central</A></FONT></TD>
-  <TD align=right><button id="toggle_circlemap"></button></TD></TR>
+  <TD align=right><button id="toggle_shapemap"></button></TD></TR>
   <TR><TD colspan=2><div id="table-container"></div></TD></TR>
   </TABLE>
   <div id="tooltip"></div>
@@ -82,10 +82,10 @@ a { color: black; text-decoration: none;}
 
 let showPerServing = true; // true = per serving; false = per 100g
 let showNetCarbs = true; // true = net carbs; false = total carbs
-let showTriangleMap = true; // true = triangle map; false = circular map
+let showShapeMap = "square"; // true = triangle map; false = circular map
 let highlightFood = null;
 const carb_hi_threshold = 40;
-const carb_lo_threshold = 30;
+const carb_lo_threshold = 30.0001;
 let lo_opacity = 0.05;
 let mid_opacity = 0.2;
 
@@ -95,8 +95,8 @@ let svg;
 //------------------------------------------------
 // Create a color scale
 const colorScale = d3.scaleThreshold()
-  .domain([0, carb_lo_threshold, carb_lo_threshold*0.667+carb_hi_threshold*0.333, carb_lo_threshold*0.337+carb_hi_threshold*0.667, carb_hi_threshold, 100])
-  .range(["#00C000", "#00C000", "#F0C000", "#F0C000", "#FF0000", "#FF0000"]);
+  .domain([0, carb_lo_threshold, carb_lo_threshold*0.5+carb_hi_threshold*0.5, carb_hi_threshold, 100])
+  .range(["#00C000", "#00C000", "#F0C000", "#FF0000", "#FF0000"]);
 
 //------------------------------------------------
 // Data initialization
@@ -441,18 +441,34 @@ data.forEach(d => {
   d.x_net =  1/Math.sqrt(2)*(+d.p_netpercent - d.f_netpercent);
   d.y_net =  1/Math.sqrt(6)*(-d.p_netpercent - d.f_netpercent + 2*d.c_netpercent);
   
-  // Convert triangle coordinates to circle
-  var tmpangle = Math.atan2(d.y, d.x)*180/Math.PI;
-  var tmpangle2 = (((tmpangle+390) % 120) - 60)/180*Math.PI;  // mod(angle + 390,120)-60
-  var tmpscale = 2.0 / (Math.sqrt( (Math.tan(tmpangle2)**2) +1));
-  d.circ_x = d.x * tmpscale;
-  d.circ_y = d.y * tmpscale;
+  // Convert to square coordinates
+  d.sqr_y = d.y;
+  d.sqr_x = (d.c_percent == 100 ? 0:d.x*100.0/(100-d.c_percent));
+  d.sqr_y_net = d.y;
+  d.sqr_x_net = (d.c_netpercent == 100 ? 0:d.x_net*100.0/(100-d.c_netpercent))
 
-  tmpangle = Math.atan2(d.y_net, d.x_net)*180/Math.PI;
-  tmpangle2 = (((tmpangle+390) % 120) - 60)/180*Math.PI;  // mod(angle + 390,120)-60
-  tmpscale = 2.0 / (Math.sqrt( (Math.tan(tmpangle2)**2) +1));
-  d.circ_x_net = d.x_net*tmpscale;
-  d.circ_y_net = d.y_net*tmpscale;
+  // Calculate circle coordinates
+  // Calculate extent of arc
+  var tmpangle = (d.c_percent == 0 ? 60 : Math.atan2(Math.sqrt(1-(d.c_percent/100)**2), d.c_percent/100)*180/Math.PI);
+  tmpangle = (d.c_percent==100 ? 0 : tmpangle * ( 2*(d.p_percent / (100-d.c_percent))-1 ) );
+  d.circ_x = Math.sin(tmpangle*Math.PI/180.0) * (200.0/Math.sqrt(6));
+  d.circ_y = -Math.cos(tmpangle*Math.PI/180.0) * (200.0/Math.sqrt(6)) + 2*d.c_percent/100.0 * (200.0/Math.sqrt(6));
+  tmpangle = (d.c_netpercent == 0 ? 60 : Math.atan2(Math.sqrt(1-(d.c_netpercent/100)**2), d.c_netpercent/100)*180/Math.PI);
+  tmpangle = (d.c_netpercent==100 ? 0 : tmpangle * ( 2*(d.p_netpercent / (100-d.c_netpercent))-1 ) );
+  d.circ_x_net = Math.sin(tmpangle*Math.PI/180.0) * (200.0/Math.sqrt(6));
+  d.circ_y_net = -Math.cos(tmpangle*Math.PI/180.0) * (200.0/Math.sqrt(6)) + 2*d.c_netpercent/100.0 * (200.0/Math.sqrt(6));
+  
+  //var tmpangle = Math.atan2(d.y, d.x)*180/Math.PI;
+  //var tmpangle2 = (((tmpangle+390) % 120) - 60)/180*Math.PI;  // mod(angle + 390,120)-60
+  //var tmpscale = 2.0 / (Math.sqrt( (Math.tan(tmpangle2)**2) +1));
+  //d.circ_x = d.x * tmpscale;
+  //d.circ_y = d.y * tmpscale;
+
+  //tmpangle = Math.atan2(d.y_net, d.x_net)*180/Math.PI;
+  //tmpangle2 = (((tmpangle+390) % 120) - 60)/180*Math.PI;  // mod(angle + 390,120)-60
+  //tmpscale = 2.0 / (Math.sqrt( (Math.tan(tmpangle2)**2) +1));
+  //d.circ_x_net = d.x_net*tmpscale;
+  //d.circ_y_net = d.y_net*tmpscale;
 
   d.size = d.p_calories + d.f_calories + d.c_calories;
   d.size_net = d.p_calories + d.f_calories + d.nc_calories;
@@ -471,8 +487,14 @@ svg = d3.select("#chart")
                 .append("svg")
                 .attr("width", width)
                 .attr("height", height);
-function set_showTriangleMap() {
-  document.getElementById('toggle_circlemap').innerText = (showTriangleMap) ? 'Triangle map' : 'Circle map';
+function set_showShapeMap() {
+  if (showShapeMap=="triangle") {
+    document.getElementById('toggle_shapemap').innerText = 'Triangle map';
+  } else if (showShapeMap=="circle") {
+    document.getElementById('toggle_shapemap').innerText = 'Circle map';
+  } else {
+    document.getElementById('toggle_shapemap').innerText = 'Square map';
+  }
 }
 function set_showPerServing() {
   document.getElementById('toggle_perserving').innerText = (showPerServing) ? 'Amount per serving' : 'Amount per 100g';
@@ -483,20 +505,26 @@ function set_showNetCarbs() {
 
 //------------------------------------------------
 // Toggle and drop down buttons
-document.getElementById('toggle_circlemap').addEventListener('click', function() {
-            showTriangleMap = !showTriangleMap;
-            set_showTriangleMap();
-            createBubbleChart();
+document.getElementById('toggle_shapemap').addEventListener('click', function() {
+  if (showShapeMap=="triangle") {
+    showShapeMap='circle';
+  } else if (showShapeMap=="circle") {
+    showShapeMap='square';
+  } else {
+    showShapeMap='triangle';
+  }
+  set_showShapeMap();
+  updateGraphics();
 });
 document.getElementById('toggle_perserving').addEventListener('click', function() {
             showPerServing = !showPerServing;
             set_showPerServing();
-            createBubbleChart();
+            updateGraphics();
 });
 document.getElementById('toggle_netcarbs').addEventListener('click', function() {
             showNetCarbs = !showNetCarbs;
             set_showNetCarbs();
-            createBubbleChart();
+            updateGraphics();
 });
 
 //------------------------------------------------
@@ -547,21 +575,21 @@ radioButtons.forEach(radioButton => {
 });
 
 function updateGraphics() {
-  createBubbleChart();
-  createTable();
+  updateBubbleChart();
+  updateTable();
 }
 // Function to draw bubble chart
-function createBubbleChart() {
+function updateBubbleChart() {
 
   // Define scales
-  const xExtent = d3.extent(data, d => (showTriangleMap ? (showNetCarbs ? d.x_net : d.x) : (showNetCarbs ? d.circ_x_net : d.circ_x)) );
-  const yExtent = d3.extent(data, d => (showTriangleMap ? (showNetCarbs ? d.y_net : d.y) : (showNetCarbs ? d.circ_y_net : d.circ_y)) );
+  const xExtent = d3.extent(data, d => (showShapeMap=='triangle' ? (showNetCarbs ? d.x_net : d.x) : (showShapeMap=='circle' ? (showNetCarbs ? d.circ_x_net : d.circ_x) : (showNetCarbs ? d.sqr_x_net : d.sqr_x))) );
+  const yExtent = d3.extent(data, d => (showShapeMap=='triangle' ? (showNetCarbs ? d.y_net : d.y) : (showShapeMap=='circle' ? (showNetCarbs ? d.circ_y_net : d.circ_y) : (showNetCarbs ? d.sqr_y_net : d.sqr_y))) );
 
   const xScale = d3.scaleLinear()
                   .domain(xExtent)
                   .range([100, width - 100]);
   const yScale = d3.scaleLinear()
-                  .domain(showTriangleMap ? yExtent : xExtent)
+                  .domain(yExtent)
                   .range([height - 100, 100]);
   const radiusScale = d3.scaleSqrt()
                        .domain(d3.extent(data, d => showPerServing ? d.size_serving : d.size))
@@ -598,14 +626,14 @@ function createBubbleChart() {
   const linegeneration = d3.line()
     .x(d => xScale(d.x))
     .y(d => yScale(d.y));
-  if (showTriangleMap) {
+  if (showShapeMap=='triangle') {
     linedata = [
       { x:ax1, y:ay1},
       { x:ax2, y:ay2},
       { x:-ax2, y:ay2},
       { x:ax1, y:ay1},
     ];
-  } else {
+  } else if (showShapeMap=='circle')  {
      const n = 100; // Number of points for the ellipse
      linedata  = [];
      for (let i = 0; i <= n; i++) {
@@ -614,6 +642,14 @@ function createBubbleChart() {
       const y = ay1 * Math.sin(angle);
       linedata.push({ x, y });
      }
+  } else if (showShapeMap=='square')  {
+     linedata = [
+      { x:ax2, y:ay1},
+      { x:ax2, y:ay2},
+      { x:-ax2, y:ay2},
+      { x:-ax2, y:ay1},
+      { x:ax2, y:ay1},
+    ];
   }
   svg.append("path")
       .datum(linedata)
@@ -624,7 +660,7 @@ function createBubbleChart() {
 
   // Add labels (optional, consider overlap handling)
   const textData = [
-  { x: ax1*1.1, y: ay1*1.1, text: showNetCarbs ? "Net carbs" : "Carbs" },
+  { x: ax1*1.1, y: ay1*1.05, text: showNetCarbs ? "Net carbs" : "Carbs" },
   { x: ax2*1.1, y: ay2*1.1, text: "Protein" },
   { x: -ax2*1.1, y: ay2*1.1, text: "Fat" }
   ];
@@ -639,41 +675,54 @@ function createBubbleChart() {
   .attr("text-anchor", "middle")
   .style("font-weight", "bold");
 
+  // Show thresholds
   if (true) {
     var n;
-    if (showTriangleMap) {
+    if (showShapeMap == 'triangle') {
       n=1;
-    } else {
-      n=100;
+    } else if (showShapeMap == 'circle') {
+      n=50;
+    } else if (showShapeMap == 'square') {
+      n=50;
     }
-    var tmp_c, tmp_dash1, tmp_dash2;
-
-    for(let j=0; j<=1; j++) {
-      if (j==0) {
-        tmp_c=carb_hi_threshold;
-        tmp_dash=1;
-        tmp_color="red";
-      } else {
-        tmp_c=carb_lo_threshold;
-        tmp_dash=5;
-        tmp_color="green";
-      }
+    
+    const numthresholds=10;
+    const tmp_dash=2;
+    for(let j=1; j<=numthresholds-1; j++) {
+      tmp_c=j/numthresholds*100;
+      tmp_color=colorScale(tmp_c); // "red";
       linedata2  = [];
       for (let i = 0; i <= n; i++) {
         tmp_p = (i / n) * (100-tmp_c);
         tmp_f = (1 - i/n) * (100-tmp_c);
 
         // Calculate coordinates
-        x =  1/Math.sqrt(2)*(+tmp_p - tmp_f);
-        y =  1/Math.sqrt(6)*(-tmp_p - tmp_f + 2*tmp_c);
-  
-        // Convert triangle coordinates to circle
-        if (showTriangleMap == false) {
-          var tmpangle = Math.atan2(y, x)*180/Math.PI;
-          var tmpangle2 = (((tmpangle+390) % 120) - 60)/180*Math.PI;  // mod(angle + 390,120)-60
-          var tmpscale = 2.0 / (Math.sqrt( (Math.tan(tmpangle2)**2) +1));
-          x = x * tmpscale;
-          y = y * tmpscale;
+        if (showShapeMap == 'triangle') {
+          x =  1/Math.sqrt(2)*(+tmp_p - tmp_f);
+          y =  1/Math.sqrt(6)*(-tmp_p - tmp_f + 2*tmp_c);
+        } else if (showShapeMap == 'circle') {
+          // Calculate extent of arc
+          var tmpangle;
+          if (tmp_c==0) {
+            tmpangle = 60;
+          } else {
+            y = (tmp_c/100);
+            x = Math.sqrt(1-y**2);
+            tmpangle = Math.atan2(x, y)*180/Math.PI;
+          }
+          tmpangle = (tmp_c==100 ? 0 : tmpangle *  ( 2*(i / n)-1 ) );
+          x = Math.sin(tmpangle*Math.PI/180.0) * (200.0/Math.sqrt(6));
+          y = -Math.cos(tmpangle*Math.PI/180.0) * (200.0/Math.sqrt(6)) + 2*tmp_c/100.0 * (200.0/Math.sqrt(6));
+//          x =  1/Math.sqrt(2)*(+tmp_p - tmp_f);
+//          y =  1/Math.sqrt(6)*(-tmp_p - tmp_f + 2*tmp_c);
+//          var tmpangle = Math.atan2(y, x)*180/Math.PI;
+//          var tmpangle2 = (((tmpangle+390) % 120) - 60)/180*Math.PI;  // mod(angle + 390,120)-60
+//          var tmpscale = 2.0 / (Math.sqrt( (Math.tan(tmpangle2)**2) +1));
+//          x = x * tmpscale;
+//          y = y * tmpscale;
+        } else if (showShapeMap == 'square') {
+          x = (tmp_c==100 ? 0 : 1/Math.sqrt(2)*(+tmp_p - tmp_f) *100.0/(100.0-tmp_c));  
+          y =  1/Math.sqrt(6)*(-tmp_p - tmp_f + 2*tmp_c);
         }
         linedata2.push({ x, y });
       }
@@ -699,8 +748,8 @@ function createBubbleChart() {
                     .on("mousemove", showTooltip )
                     .on("click"    , pickFood ) // For detailed tooltip on click
      	            .on("mouseout" , hideTooltip   )
-                    .attr("cx", d => xScale(showTriangleMap ? (showNetCarbs ? d.x_net : d.x ):(showNetCarbs ? d.circ_x_net : d.circ_x)))
-                    .attr("cy", d => yScale(showTriangleMap ? (showNetCarbs ? d.y_net : d.y ):(showNetCarbs ? d.circ_y_net : d.circ_y)))
+                    .attr("cx", d => xScale(showShapeMap=='triangle' ? (showNetCarbs ? d.x_net : d.x ):(showShapeMap=='circle' ? (showNetCarbs ? d.circ_x_net : d.circ_x) : (showNetCarbs ? d.sqr_x_net : d.sqr_x))))
+                    .attr("cy", d => yScale(showShapeMap=='triangle' ? (showNetCarbs ? d.y_net : d.y ):(showShapeMap=='circle' ? (showNetCarbs ? d.circ_y_net : d.circ_y) : (showNetCarbs ? d.sqr_y_net : d.sqr_y))))
                     .attr("r", d => radiusScale( showNetCarbs ? (showPerServing ? d.size_serving_net : d.size_net) : (showPerServing ? d.size_serving : d.size)))
 		    .attr("opacity", d => d.opacity)
 		    .attr("fill", d => d.color)
@@ -712,8 +761,8 @@ function createBubbleChart() {
                     .data(data_filtered )
                     .enter()
                     .append("circle")
-                    .attr("cx", d => xScale(showTriangleMap ? (showNetCarbs ? d.x_net : d.x ):(showNetCarbs ? d.circ_x_net : d.circ_x)))
-                    .attr("cy", d => yScale(showTriangleMap ? (showNetCarbs ? d.y_net : d.y ):(showNetCarbs ? d.circ_y_net : d.circ_y)))
+                    .attr("cx", d => xScale(showShapeMap=='triangle' ? (showNetCarbs ? d.x_net : d.x ):(showShapeMap=='circle' ? (showNetCarbs ? d.circ_x_net : d.circ_x) : (showNetCarbs ? d.sqr_x_net : d.sqr_x))))
+                    .attr("cy", d => yScale(showShapeMap=='triangle' ? (showNetCarbs ? d.y_net : d.y ):(showShapeMap=='circle' ? (showNetCarbs ? d.circ_y_net : d.circ_y) : (showNetCarbs ? d.sqr_y_net : d.sqr_y))))
                     .attr("r", d => radiusScale( showNetCarbs ? (showPerServing ? d.size_serving_net : d.size_net) : (showPerServing ? d.size_serving : d.size)))
 		    .attr("opacity", d => d.opacity)
 		    .attr("fill", d => d.color)
@@ -728,8 +777,8 @@ function createBubbleChart() {
                     .on("mousemove", showTooltip )
                     .on("click"    , pickFood ) // For detailed tooltip on click
      	            .on("mouseout" , hideTooltip   )
-                    .attr("cx", d => xScale(showTriangleMap ? (showNetCarbs ? d.x_net : d.x ):(showNetCarbs ? d.circ_x_net : d.circ_x)))
-                    .attr("cy", d => yScale(showTriangleMap ? (showNetCarbs ? d.y_net : d.y ):(showNetCarbs ? d.circ_y_net : d.circ_y)))
+                    .attr("cx", d => xScale(showShapeMap=='triangle' ? (showNetCarbs ? d.x_net : d.x ):(showShapeMap=='circle' ? (showNetCarbs ? d.circ_x_net : d.circ_x) : (showNetCarbs ? d.sqr_x_net : d.sqr_x))))
+                    .attr("cy", d => yScale(showShapeMap=='triangle' ? (showNetCarbs ? d.y_net : d.y ):(showShapeMap=='circle' ? (showNetCarbs ? d.circ_y_net : d.circ_y) : (showNetCarbs ? d.sqr_y_net : d.sqr_y))))
                     .attr("r", d => radiusScale( showNetCarbs ? (showPerServing ? d.size_serving_net : d.size_net) : (showPerServing ? d.size_serving : d.size)))
 		    .attr("opacity", d => d.opacity)
 		    .attr("fill", d => d.color)
@@ -739,7 +788,7 @@ function createBubbleChart() {
 
   svg.on("click", clickChart ); // For detailed tooltip on click
 }
-function createTable(){
+function updateTable(){
   const container = document.getElementById("table-container");
   const table = document.createElement('table');
   table.className = "nutrienttable";
@@ -882,9 +931,9 @@ function clickChart(event, d) {
  }
 }
 
-function testLabel(testmessage) {
+function debugmessage(testmessage) {
   const tooltip = d3.select("#tooltip");
-  tooltip.html("TEST MESSAGE: " + testmessage)
+  tooltip.html("MESSAGE: " + testmessage)
   .style("left", (10) + "px")
   .style("top", (20) + "px")
     .transition().duration(0).style("display", null)
@@ -900,7 +949,7 @@ function hideTooltip() {
 }
 
 // Set up toggles
-set_showTriangleMap();
+set_showShapeMap();
 set_showPerServing();
 set_showNetCarbs();
  
