@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
@@ -766,13 +765,13 @@ function updateBubbleChart() {
 
 
   // Create bubble
-  if (showCategory == "showAll") {
+  if (showCategory == "Show all") {
     data_filtered = data.filter(d => d.opacity != 1);
     bubbles = svg.selectAll("circle")
-                    .data(data)
+                    .data(data_filtered )
                     .enter()
                     .append("circle")
-                    .on("click"    , pickFood ) // For detailed tooltip on click
+		    .on("click"    , pickFood ) // For detailed tooltip on click
                     .attr("cx", d => xScale(showShapeMap=='triangle' ? (showNetCarbs ? d.x_net : d.x ):(showShapeMap=='circle' ? (showNetCarbs ? d.circ_x_net : d.circ_x) : (showNetCarbs ? d.sqr_x_net : d.sqr_x))))
                     .attr("cy", d => yScale(showShapeMap=='triangle' ? (showNetCarbs ? d.y_net : d.y ):(showShapeMap=='circle' ? (showNetCarbs ? d.circ_y_net : d.circ_y) : (showNetCarbs ? d.sqr_y_net : d.sqr_y))))
                     .attr("r", d => radiusScale( showNetCarbs ? (showPerServing ? d.size_serving_net : d.size_net) : (showPerServing ? d.size_serving : d.size)))
@@ -782,7 +781,7 @@ function updateBubbleChart() {
                     .attr("stroke-width", 1); // Set the outline width to 2 pixels
     data_filtered = data.filter(d => d.opacity == 1);
     bubbles = svg.selectAll("circle1")
-                    .data(data)
+                    .data(data_filtered )
                     .enter()
                     .append("circle")
                     .on("mouseover", showTooltip )
