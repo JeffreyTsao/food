@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
@@ -8,8 +9,8 @@
 //  font-size: 14px;
 }
 #chart {
-  width: 800px;
-  height: 693px;
+  width: 700px;
+  height: 600px;
 }
 #tooltip {
   position: absolute;
@@ -53,6 +54,20 @@
 }
 a:hover {color: red;}
 a { color: black; text-decoration: none;}
+.category-container-class input[type="radio"] {
+  display: none;
+}
+.category-button {
+  display: inline-block;
+  padding: 2px 10px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  border-radius: 5px;
+  width: 150px;
+}
+.category-button.checked {
+  border: 2px solid #000;
+}
 </style>
 </head>
 
@@ -65,7 +80,7 @@ a { color: black; text-decoration: none;}
   </TD></TR>
   <TR>
   <TD width=85% align=middle><div id="chart"></div></TD>
-  <TD valign=top width=15%><B>Food categories</B><div id="category-container"></div></TD></TR>
+  <TD valign=top width=15%><B>Food categories</B><div id="category-container" class="category-container-class"></div></TD></TR>
   <TR><TD>
   <FONT COLOR=#A0A0A0>Source: <A HREF=https://fdc.nal.usda.gov/fdc-app.html>USDA FoodData Central</A></FONT></TD>
   <TD align=right><button id="toggle_shapemap"></button></TD></TR>
@@ -480,8 +495,8 @@ data.forEach(d => {
 
 //------------------------------------------------
 // Canvas
-const width = 800;
-const height = 693;
+const width = 700;
+const height = 600;
 svg = d3.select("#chart")
                 .append("svg")
                 .attr("width", width)
@@ -530,7 +545,8 @@ document.getElementById('toggle_netcarbs').addEventListener('click', function() 
 //------------------------------------------------
 const viewcategories = ['Show all', 'Beverages', 'Carbs and flours', 'Condiments', 'Dairy food and eggs', 'Fruits', 'Meats', 'Nuts and beans', 'Oils and butters', 'Seafood', 'Vegetables'];
 const categorycolors = ['#ffffff', '#0080FF', '#FFECD1', '#7F7F7F', '#F2F2F2', '#FF8000', '#F00000', '#AD5430', '#FFFF00', '#FEBEA4', '#00FF50'];	
-function createCategoryButtons(options, container) {
+const categoryfontcolors = ['#000', '#fff', '#000', '#fff', '#000', '#fff', '#fff', '#fff', '#000', '#000', '#000'];	
+function createCategoryButtons(container, options, optioncolors, optionfontcolors) {
   options.forEach((option, index) => {
     const input = document.createElement('input');
     input.type = 'radio';
@@ -540,13 +556,26 @@ function createCategoryButtons(options, container) {
     input.id = `option-${index}`;
     const label = document.createElement('label');
     label.htmlFor = `option-${index}`;
-    label.innerHTML = "<FONT COLOR=\"" + categorycolors[index] + "\">&#x25A0;</FONT>&nbsp;" + option + "<BR>"; // x25A0 9632 x25FC 9724
+    label.innerHTML = option;
+    label.style.color = optionfontcolors[index];
+    label.style.backgroundColor = categorycolors[index];
+    label.classList.add('category-button');
+    if (index==0) label.classList.add('checked');
     container.appendChild(input);
     container.appendChild(label);
   });
+  const categoryButtons = document.querySelectorAll('.category-button');
+  categoryButtons.forEach(button => {
+    button.addEventListener('click', () => {
+     categoryButtons.forEach(btn => btn.classList.remove('checked'));   
+       button.classList.add('checked');
+    });
+  });
 }
+
 function changeCategory() {
-  const selectedOption = document.querySelector('input[name="option"]:checked').value;
+  const button = document.querySelector('input[name="option"]:checked');
+  const selectedOption = button.value;
   showCategory = selectedOption;
   highlightFood=null;
   hideTooltip();
@@ -569,7 +598,7 @@ function updateOpacity() {
     }
   }
 }
-createCategoryButtons(viewcategories, document.getElementById('category-container'));
+createCategoryButtons(document.getElementById('category-container'), viewcategories, categorycolors, categoryfontcolors);
 const radioButtons = document.querySelectorAll('input[name="option"]');
 radioButtons.forEach(radioButton => {
   radioButton.addEventListener('change', changeCategory);
@@ -594,20 +623,13 @@ function updateBubbleChart() {
                   .range([100, width - 100]);
   const yScale = d3.scaleLinear()
                   .domain(yExtent)
-                  .range([height - 100, 100]);
+                  .range([height - 50, 50]);
   const radiusScale = d3.scaleSqrt()
                        .domain(d3.extent(data, d => showPerServing ? d.size_serving : d.size))
                        .range([2, 20]);
 
   // Remove prior  
   svg.selectAll("*").remove();
-  svg.attr("width", 800)
-        .attr("height", 800)
-        .attr("fill","#ff8080");
-          	            
-  //svg.selectAll("path").remove();
-  //svg.selectAll("text").remove();
-  //svg.selectAll("circle").remove();
 
   // Add axes (optional)
   if (false) {
@@ -812,7 +834,7 @@ function updateTable(){
 
 if (true) {
   // Create table body
-  const tbody = document.createElement('tbody');   
+  const tbody = document.createElement('tbody');   
 
   data.forEach(d => {
     if (d.opacity!=lo_opacity) {
@@ -820,29 +842,29 @@ if (true) {
     td = document.createElement('td');
     td.textContent = d.name;
     if (d.opacity==mid_opacity) td.style.color="#A0A0A0";
-    tr.appendChild(td);   
+    tr.appendChild(td);   
 
     td = document.createElement('td');
     td.textContent = (showPerServing ? d.p_serving.toFixed(2) : d.p.toFixed(2));
     if (d.opacity==mid_opacity) td.style.color="#A0A0A0";
-    tr.appendChild(td);   
+    tr.appendChild(td);   
 
     td = document.createElement('td');
     td.textContent = (showPerServing ? d.f_serving.toFixed(2) : d.f.toFixed(2));
     if (d.opacity==mid_opacity) td.style.color="#A0A0A0";
-    tr.appendChild(td);   
+    tr.appendChild(td);   
 
     td = document.createElement('td');
     td.textContent = (showPerServing ? (showNetCarbs ? d.nc_serving.toFixed(2) : d.c_serving.toFixed(2)) : (showNetCarbs ? d.nc.toFixed(2) : d.c.toFixed(2)));
     if (d.opacity==mid_opacity) td.style.color="#A0A0A0";
-    tr.appendChild(td);   
+    tr.appendChild(td);   
 
     td = document.createElement('td');
     const color1 = colorScale((showNetCarbs ? d.c_netpercent : d.c_percent));
     td.textContent = (showNetCarbs ? d.c_netpercent.toFixed(1) : d.c_percent.toFixed(1));
 //    td.innerHTML = "<FONT COLOR=" + color1 + ">" + (showNetCarbs ? d.c_netpercent.toFixed(1) : d.c_percent.toFixed(1)) + "</FONT>";
     td.style.color = (d.opacity==mid_opacity ? "#A0A0A0" : color1);
-    tr.appendChild(td);   
+    tr.appendChild(td);   
     tbody.appendChild(tr);
     }
    });
@@ -871,11 +893,11 @@ if (true) {
 function sortTable(tableid,columnIndex, ascending = true) {
   const table = document.getElementById(tableid);
   const tbody = table.querySelector('tbody');
-  const rows = Array.from(tbody.querySelectorAll('tr'));   
+  const rows = Array.from(tbody.querySelectorAll('tr'));   
 
 
   rows.sort((a, b) => {
-    const cellA = a.cells[columnIndex].textContent;   
+    const cellA = a.cells[columnIndex].textContent;   
 
     const cellB = b.cells[columnIndex].textContent;
     const compare = cellA.localeCompare(cellB);
