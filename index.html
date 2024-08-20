@@ -529,7 +529,7 @@ document.getElementById('toggle_netcarbs').addEventListener('click', function() 
 
 //------------------------------------------------
 const viewcategories = ['Show all', 'Beverages', 'Carbs and flours', 'Condiments', 'Dairy food and eggs', 'Fruits', 'Meats', 'Nuts and beans', 'Oils and butters', 'Seafood', 'Vegetables'];
-
+const categorycolors = ['#ffffff', '#0080FF', '#FFECD1', '#7F7F7F', '#F2F2F2', '#FF8000', '#F00000', '#AD5430', '#FFFF00', '#FEBEA4', '#00FF50'];	
 function createCategoryButtons(options, container) {
   options.forEach((option, index) => {
     const input = document.createElement('input');
@@ -540,7 +540,7 @@ function createCategoryButtons(options, container) {
     input.id = `option-${index}`;
     const label = document.createElement('label');
     label.htmlFor = `option-${index}`;
-    label.innerHTML = option + "<BR>";
+    label.innerHTML = option + "<FONT SIZE='" + categorycolors[index] + "'>&#9679</FONT><BR>";
     container.appendChild(input);
     container.appendChild(label);
   });
