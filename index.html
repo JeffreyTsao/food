@@ -695,7 +695,7 @@ function updateBubbleChart() {
       tmp_c=j/numthresholds*100;
       tmp_color=colorScale(tmp_c); // "red";
       linedata2  = [];
-      for (let i = 1; i < n; i++) {
+      for (let i = 0; i <= n; i++) {
         tmp_p = (i / n) * (100-tmp_c);
         tmp_f = (1 - i/n) * (100-tmp_c);
 
