@@ -540,7 +540,7 @@ function createCategoryButtons(options, container) {
     input.id = `option-${index}`;
     const label = document.createElement('label');
     label.htmlFor = `option-${index}`;
-    label.innerHTML = option + "<FONT SIZE='" + categorycolors[index] + "'>&#9679</FONT><BR>";
+    label.innerHTML = option + "&nbsp;<FONT COLOR='" + categorycolors[index] + "'>&#9679</FONT><BR>";
     container.appendChild(input);
     container.appendChild(label);
   });
