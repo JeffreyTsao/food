@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
@@ -64,10 +65,13 @@ a { color: black; text-decoration: none;}
   border-radius: 5px;
   width: 160px;
   font-weight: normal;
+  opacity: 0.5;
+  margin-top: 5px;
 }
 .category-button.checked {
   border: 2px solid #000;
   font-weight: bold;
+  opacity: 1;
 }
 </style>
 </head>
@@ -558,6 +562,7 @@ function createCategoryButtons(container, options, optioncolors, optionfontcolor
     const label = document.createElement('label');
     label.htmlFor = `option-${index}`;
     label.innerHTML = option;
+    label.value = option;
     label.style.color = optionfontcolors[index];
     label.style.backgroundColor = categorycolors[index];
     label.classList.add('category-button');
@@ -569,7 +574,7 @@ function createCategoryButtons(container, options, optioncolors, optionfontcolor
   categoryButtons.forEach(button => {
     button.addEventListener('click', () => {
      categoryButtons.forEach(btn => btn.classList.remove('checked'));   
-       button.classList.add('checked');
+     button.classList.add('checked');
     });
   });
 }
@@ -577,12 +582,24 @@ function createCategoryButtons(container, options, optioncolors, optionfontcolor
 function changeCategory() {
   const button = document.querySelector('input[name="option"]:checked');
   const selectedOption = button.value;
-  showCategory = selectedOption;
+  if (showCategory == selectedOption) {
+    showCategory = "Show all";
+
+    const categoryButtons = document.querySelectorAll('.category-button');
+    categoryButtons.forEach(button => { 
+      button.classList.remove('checked'); 
+      if (button.value=="Show all") button.classList.add('checked'); 
+    });
+
+  } else {
+    showCategory = selectedOption;
+  }
   highlightFood=null;
   hideTooltip();
   updateOpacity();
   updateGraphics();
   sortTable("nutrienttable",0,true);
+
 }
 function updateOpacity() {
   if (highlightFood==null) {
@@ -602,7 +619,7 @@ function updateOpacity() {
 createCategoryButtons(document.getElementById('category-container'), viewcategories, categorycolors, categoryfontcolors);
 const radioButtons = document.querySelectorAll('input[name="option"]');
 radioButtons.forEach(radioButton => {
-  radioButton.addEventListener('change', changeCategory);
+  radioButton.addEventListener('click', changeCategory);
 });
 
 function updateGraphics() {
