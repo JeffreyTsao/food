@@ -58,15 +58,17 @@ a { color: black; text-decoration: none;}
   display: none;
 }
 .category-button {
-  display: inline-block;
+  display: block;
   padding: 2px 10px;
   border: 1px solid #ccc;
   cursor: pointer;
   border-radius: 5px;
-  width: 150px;
+  width: 160px;
+  font-weight: normal;
 }
 .category-button.checked {
   border: 2px solid #000;
+  font-weight: bold;
 }
 </style>
 </head>
@@ -781,11 +783,24 @@ function updateBubbleChart() {
                     .attr("stroke", d => (d.opacity==1 ? "grey" : "none")) // outline colorScale( showNetCarbs ? d.c_netpercent : d.c_percent) 
                     .attr("stroke-width", 1); // Set the outline width to 2 pixels
   } else {
-    data_filtered = data.filter(d => d.opacity != 1);
+    data_filtered = data.filter(d => d.opacity != 1 && d.category!=showCategory);
     bubbles = svg.selectAll("circle")
                     .data(data_filtered )
                     .enter()
                     .append("circle")
+                    .attr("cx", d => xScale(showShapeMap=='triangle' ? (showNetCarbs ? d.x_net : d.x ):(showShapeMap=='circle' ? (showNetCarbs ? d.circ_x_net : d.circ_x) : (showNetCarbs ? d.sqr_x_net : d.sqr_x))))
+                    .attr("cy", d => yScale(showShapeMap=='triangle' ? (showNetCarbs ? d.y_net : d.y ):(showShapeMap=='circle' ? (showNetCarbs ? d.circ_y_net : d.circ_y) : (showNetCarbs ? d.sqr_y_net : d.sqr_y))))
+                    .attr("r", d => radiusScale( showNetCarbs ? (showPerServing ? d.size_serving_net : d.size_net) : (showPerServing ? d.size_serving : d.size)))
+		    .attr("opacity", d => d.opacity)
+		    .attr("fill", d => d.color)
+                    .attr("stroke", "none") // outline
+                    .attr("stroke-width", 1); // Set the outline width to 2 pixels
+    data_filtered = data.filter(d => d.opacity != 1 && d.category==showCategory);
+    bubbles = svg.selectAll("circle1")
+                    .data(data_filtered )
+                    .enter()
+                    .append("circle")
+                    .on("click"    , pickFood ) // For detailed tooltip on click
                     .attr("cx", d => xScale(showShapeMap=='triangle' ? (showNetCarbs ? d.x_net : d.x ):(showShapeMap=='circle' ? (showNetCarbs ? d.circ_x_net : d.circ_x) : (showNetCarbs ? d.sqr_x_net : d.sqr_x))))
                     .attr("cy", d => yScale(showShapeMap=='triangle' ? (showNetCarbs ? d.y_net : d.y ):(showShapeMap=='circle' ? (showNetCarbs ? d.circ_y_net : d.circ_y) : (showNetCarbs ? d.sqr_y_net : d.sqr_y))))
                     .attr("r", d => radiusScale( showNetCarbs ? (showPerServing ? d.size_serving_net : d.size_net) : (showPerServing ? d.size_serving : d.size)))
@@ -954,8 +969,10 @@ function pickFood(event, d) {
   showTooltip(event, d);
   if (highlightFood==null) {
     highlightFood=d.name;
-  } else {
+  } else if (highlightFood==d.name) {
     highlightFood=null;
+  } else if (d.category==showCategory || showCategory=="Show all") {
+    highlightFood=d.name;
   }
   updateOpacity();
   updateGraphics();
