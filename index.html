@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
@@ -703,9 +704,9 @@ function updateBubbleChart() {
 
   // Add labels (optional, consider overlap handling)
   const textData = [
-  { x: ax1*1.1, y: ay1*1.05, text: showNetCarbs ? "Net carbs" : "Carbs" },
-  { x: ax2*1.1, y: ay2*1.1, text: "Protein" },
-  { x: -ax2*1.1, y: ay2*1.1, text: "Fat" }
+  { x: ax1*1., y: ay1*1.0, text: showNetCarbs ? "Net carbs" : "Carbs", anchorpos: "middle", dx: "0", dy: "-1em"},
+  { x: ax2*1., y: ay2*1., text: "Protein", anchorpos: "start", dx:  "0.5em", dy: "+1.5em" },
+  { x: -ax2*1., y: ay2*1., text: "Fat", anchorpos: "end", dx:"-0.5em", dy: "+1.5em" }
   ];
   svg.selectAll("text")
   .data(textData)
@@ -715,7 +716,9 @@ function updateBubbleChart() {
   .attr("y", d => yScale(d.y))
   .text(d => d.text)
   .attr("fill", "black")
-  .attr("text-anchor", "middle")
+  .attr("text-anchor", d => d.anchorpos)
+  .attr("dx", d => d.dx)
+  .attr("dy", d => d.dy)
   .style("font-weight", "bold");
 
   // Show contour lines
