@@ -1,96 +1,298 @@
 <!DOCTYPE html>
-<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-
-<title>Food chart</title>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Food PFC Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-* {
-  font-family: Arial, sans-serif;
-//  font-size: 14px;
+:root {
+  --paper: #f5f1e7;
+  --card: #fffdf8;
+  --ink: #1e2a22;
+  --ink-muted: #6b7568;
+  --forest: #2f6f4e;
+  --forest-dark: #234f38;
+  --amber: #c47a2b;
+  --rust: #ad4a3a;
+  --line: #e2dac6;
+  --shadow: 0 1px 2px rgba(30,42,34,0.04), 0 8px 24px -12px rgba(30,42,34,0.18);
+  --radius: 14px;
+  --radius-sm: 9px;
 }
-#chart {
-  width: 700px;
-  height: 600px;
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 32px 24px 64px;
+  background: var(--paper);
+  background-image: radial-gradient(circle at 1px 1px, rgba(30,42,34,0.05) 1px, transparent 0);
+  background-size: 22px 22px;
+  color: var(--ink);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+
+.app { max-width: 1180px; margin: 0 auto; }
+
+/* ---------- Header ---------- */
+.topbar { margin-bottom: 4px; }
+.eyebrow {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--forest);
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
+}
+h1 {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 34px;
+  letter-spacing: -0.01em;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.info-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink-muted);
+  color: var(--ink-muted);
+  background: transparent;
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1;
+  cursor: help;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s ease;
+  flex-shrink: 0;
+}
+.info-btn:hover { border-color: var(--forest); color: var(--forest); }
+
+.toggle-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.toggle-btn {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 100px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+  transition: all .15s ease;
+  box-shadow: var(--shadow);
+}
+.toggle-btn:hover { border-color: var(--forest); color: var(--forest-dark); transform: translateY(-1px); }
+.toggle-btn:active { transform: translateY(0); }
+
+/* ---------- Main grid ---------- */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 20px;
+  align-items: start;
+  margin-top: 22px;
+}
+
+.chart-card, .category-panel, .table-section {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.chart-card { padding: 20px 20px 14px; display: flex; flex-direction: column; align-items: center; }
+#chart { width: 700px; max-width: 100%; height: 600px; }
+#chart svg { max-width: 100%; height: auto; }
+
+.chart-footer {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+.chart-footer a { color: var(--forest-dark); text-decoration: none; border-bottom: 1px solid transparent; }
+.chart-footer a:hover { border-bottom-color: var(--forest-dark); }
+
+/* ---------- Category panel ---------- */
+.category-panel { padding: 18px; align-self: start; }
+.category-panel h2 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+.category-container-class input[type="radio"] { display: none; }
+.category-button {
+  display: flex;
+  align-items: center;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  width: 100%;
+  font-weight: 500;
+  font-size: 13px;
+  opacity: 0.55;
+  margin-top: 6px;
+  transition: all .15s ease;
+}
+.category-button:first-child { margin-top: 0; }
+.category-button:hover { opacity: 0.85; transform: translateX(2px); }
+.category-button.checked { border: 1.5px solid var(--ink); font-weight: 700; opacity: 1; box-shadow: var(--shadow); }
+
+/* ---------- Table ---------- */
+.table-section { margin-top: 20px; padding: 18px 20px 20px; overflow: hidden; }
+#table-container { overflow-x: auto; border-radius: var(--radius-sm); max-height: 560px; overflow-y: auto; }
+
+.nutrienttable { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+.nutrienttable th, .nutrienttable td { border-bottom: 1px solid var(--line); padding: 9px 10px; text-align: left; }
+.nutrienttable td:not(:first-child), .nutrienttable th:not(:first-child) {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12.5px;
+}
+.nutrienttable th {
+  background-color: var(--paper);
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.nutrienttable th a { color: var(--ink-muted); text-decoration: none; padding: 1px 3px; }
+.nutrienttable th a:hover { color: var(--forest); }
+.nutrienttable tbody tr:hover { background-color: rgba(47,111,78,0.07); }
+.nutrienttable tbody tr:nth-child(even) { background-color: rgba(30,42,34,0.02); }
+
+#filterName {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  outline: none;
+  margin-left: 6px;
+  width: 160px;
+  max-width: 40vw;
+  background: var(--card);
+  color: var(--ink);
+}
+#filterName:focus { border-color: var(--forest); }
+#filterNameCancel {
+  font-family: 'Inter', sans-serif;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 100px;
+  width: 22px;
+  height: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--ink-muted);
+  margin-left: 4px;
+}
+#filterNameCancel:hover { color: var(--rust); border-color: var(--rust); }
+
+.hidden { display: none; }
+a:hover { color: var(--forest); }
+a { color: var(--ink); text-decoration: none; }
+
+/* ---------- Tooltip ---------- */
 #tooltip {
   position: absolute;
-  background: white;
-  border: 1px solid gray;
-  border-radius: 5px;
-  padding: 10px;
-  opacity: 0.0;
-  transition: opacity 0.2s;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  box-shadow: 0 12px 32px -10px rgba(30,42,34,0.35);
+  font-size: 12.5px;
+  pointer-events: none;
+  max-width: 340px;
 }
-.tooltip {
-  border-collapse: collapse;
-  width: 100%;
-}
-.tooltip th, .tooltip td {
-  border: 1px solid #c0c0c0;
-  padding: 8px;
-  text-align: left;
-}
-.nutrienttable th {
-  background-color: #f2f2f2;
-}
-.nutrienttable {
-  border-collapse: collapse;
-  width: 100%;
-}
-.nutrienttable th, .nutrienttable td {
-  border: 1px solid #c0c0c0;
-  padding: 8px;
-  text-align: left;
-}
-.nutrienttable th {
-  background-color: #f2f2f2;
-}
-.nutrienttable tr:hover {
-      background-color: #f0f0f0;
-    }
+.tooltip { border-collapse: collapse; width: 100%; }
+.tooltip th, .tooltip td { border: none; padding: 3px 8px 3px 0; text-align: left; }
+#tooltip ul { margin: 0; padding-left: 18px; }
+#tooltip li { margin-bottom: 6px; line-height: 1.4; }
+#tooltip li:last-child { margin-bottom: 0; }
 
-.hidden {
-  display: none;
-}
-a:hover {color: red;}
-a { color: black; text-decoration: none;}
-.category-container-class input[type="radio"] {
-  display: none;
-}
-.category-button {
-  display: block;
-  padding: 2px 10px;
-  border: 1px solid #ccc;
-  cursor: pointer;
-  border-radius: 5px;
-  width: 160px;
-  font-weight: normal;
-  opacity: 0.5;
-  margin-top: 5px;
-}
-.category-button.checked {
-  border: 2px solid #000;
-  font-weight: bold;
-  opacity: 1;
+/* ---------- Responsive ---------- */
+@media (max-width: 860px) {
+  .main-grid { grid-template-columns: 1fr; }
+  #chart { width: 100%; height: auto; aspect-ratio: 7 / 6; }
+  h1 { font-size: 26px; }
+  .table-section { padding: 14px; }
 }
 </style>
 </head>
 
 <body>
-  <table width=100% class="layout"><TR>
-  <TD colspan=2>
-  <FONT SIZE="+2">Food PFC map <A onclick="showHelpInfo(event)" onmouseover="showHelpInfo(event)">&#9432;</FONT></A><BR>
-  <button id="toggle_perserving"></button>
-  <button id="toggle_netcarbs"></button>
-  </TD></TR>
-  <TR>
-  <TD width=85% align=middle><div id="chart"></div></TD>
-  <TD valign=top width=15%><B>Food categories</B><div id="category-container" class="category-container-class"></div></TD></TR>
-  <TR><TD>
-  <FONT COLOR=#A0A0A0>Source: <A HREF=https://fdc.nal.usda.gov/fdc-app.html>USDA FoodData Central</A></FONT></TD>
-  <TD align=right><button id="toggle_shapemap"></button></TD></TR>
-  <TR><TD colspan=2><div id="table-container"></div></TD></TR>
-  </TABLE>
-  <div id="tooltip"></div>
+<div class="app">
+
+  <header class="topbar">
+    <p class="eyebrow">USDA FoodData Central &middot; Macronutrient Map</p>
+    <div class="title-row">
+      <h1>Food PFC Map <span class="info-btn" onclick="showHelpInfo(event)" onmouseover="showHelpInfo(event)" role="button" tabindex="0" aria-label="About this chart">i</span></h1>
+      <div class="toggle-row">
+        <button id="toggle_perserving" class="toggle-btn"></button>
+        <button id="toggle_netcarbs" class="toggle-btn"></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-grid">
+    <section class="chart-card">
+      <div id="chart"></div>
+      <div class="chart-footer">
+        <span>Source: <a href="https://fdc.nal.usda.gov/fdc-app.html" target="_blank" rel="noopener">USDA FoodData Central</a></span>
+        <button id="toggle_shapemap" class="toggle-btn"></button>
+      </div>
+    </section>
+    <aside class="category-panel">
+      <h2>Food categories</h2>
+      <div id="category-container" class="category-container-class"></div>
+    </aside>
+  </main>
+
+  <section class="table-section">
+    <div id="table-container"></div>
+  </section>
+
+</div>
+<div id="tooltip"></div>
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script>
