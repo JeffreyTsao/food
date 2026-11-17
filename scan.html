@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PFC · Barcode scan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #f5f1e7;
+  --card: #fffdf8;
+  --ink: #1e2a22;
+  --ink-muted: #6b7568;
+  --forest: #2f6f4e;
+  --forest-dark: #234f38;
+  --forest-tint: #e3efe7;
+  --amber: #c47a2b;
+  --amber-tint: #f7ead8;
+  --rust: #ad4a3a;
+  --rust-tint: #f5e0dc;
+  --line: #e2dac6;
+  /* macro colours */
+  --protein: #ad4a3a;
+  --fat: #c47a2b;
+  --carbs: #3b6e8f;
+  --fiber: #5b8f7c;
+  --shadow: 0 1px 2px rgba(30,42,34,0.04), 0 8px 24px -12px rgba(30,42,34,0.18);
+  --radius: 14px;
+  --radius-sm: 9px;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 28px 20px 64px;
+  background: var(--paper);
+  background-image: radial-gradient(circle at 1px 1px, rgba(30,42,34,0.05) 1px, transparent 0);
+  background-size: 22px 22px;
+  color: var(--ink);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.app { max-width: 1180px; margin: 0 auto; }
+.hidden { display: none !important; }
+a { color: var(--forest-dark); text-decoration: none; }
+a:hover { color: var(--forest); }
+
+/* ---------- Header ---------- */
+.eyebrow {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--forest); font-weight: 600; margin: 0 0 6px;
+}
+.title-row {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  flex-wrap: wrap; gap: 16px; border-bottom: 1px solid var(--line); padding-bottom: 14px;
+}
+h1 {
+  font-family: 'Fraunces', serif; font-weight: 600; font-size: 34px;
+  letter-spacing: -0.01em; margin: 0; display: flex; align-items: center; gap: 10px;
+}
+
+.conn {
+  font-family: var(--mono); font-size: 11px; color: var(--ink-muted);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.conn .dot { width: 8px; height: 8px; border-radius: 50%; background: #bbb; }
+.conn.ok .dot { background: var(--forest); }
+.conn.err .dot { background: var(--rust); }
+
+/* ---------- Shared controls ---------- */
+.card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+}
+.card h2, .panel-title {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-muted); margin: 0 0 12px; font-weight: 600;
+}
+.btn {
+  font: 600 13px 'Inter', sans-serif; padding: 9px 16px; border-radius: 100px;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  cursor: pointer; transition: all .15s ease; box-shadow: var(--shadow); white-space: nowrap;
+}
+.btn:hover:not(:disabled) { border-color: var(--forest); color: var(--forest-dark); transform: translateY(-1px); }
+.btn:active:not(:disabled) { transform: translateY(0); }
+.btn.primary { background: var(--forest); border-color: var(--forest); color: #fff; }
+.btn.primary:hover:not(:disabled) { background: var(--forest-dark); color: #fff; }
+.btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+.btn:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+input[type="text"], input[type="number"], select {
+  font: 500 14px 'Inter', sans-serif; color: var(--ink);
+  padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: #fff; outline: none; min-width: 0;
+}
+input[type="text"]:focus, input[type="number"]:focus, select:focus { border-color: var(--forest); }
+select { cursor: pointer; }
+
+.toast {
+  font-size: 13px; padding: 9px 12px; border-radius: var(--radius-sm); margin-top: 10px;
+  background: var(--forest-tint); color: var(--forest-dark); border: 1px solid var(--forest);
+}
+.toast.err { background: var(--rust-tint); color: var(--rust); border-color: var(--rust); }
+
+.swatch { width: 14px; height: 14px; border-radius: 4px; flex: none; }
+.swatch.protein { background: var(--protein); }
+.swatch.fat { background: var(--fat); }
+.swatch.carbs { background: var(--carbs); }
+.swatch.fiber { background: var(--fiber); opacity: .7; }
+.donut { flex: none; display: block; }
+.legend { display: flex; flex-direction: column; gap: 10px; }
+.legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.legend-label { flex: 1; font-weight: 600; color: #3a4a3e; }
+.legend-value { font-family: var(--mono); font-weight: 600; font-size: 14px; }
+
+/* ---------- Scanner ---------- */
+.scan-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.scan-card, .result-card { padding: 20px; }
+.viewfinder {
+  position: relative; background: #111; border-radius: var(--radius-sm); overflow: hidden;
+  aspect-ratio: 4 / 3; margin: 12px 0; display: flex; align-items: center; justify-content: center;
+}
+.viewfinder video, .viewfinder img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.viewfinder .placeholder { color: #9aa39a; font-size: 13px; text-align: center; padding: 20px; }
+.viewfinder .reticle {
+  position: absolute; left: 12%; right: 12%; top: 38%; bottom: 38%;
+  border: 2px solid rgba(255,255,255,.85); border-radius: 8px; box-shadow: 0 0 0 999px rgba(0,0,0,.25);
+  pointer-events: none;
+}
+.manual { display: flex; gap: 8px; margin-top: 4px; }
+.manual input { flex: 1; font-family: var(--mono); }
+.hint { font-size: 12px; color: var(--ink-muted); line-height: 1.5; margin-top: 10px; }
+.product-head { display: flex; gap: 14px; align-items: flex-start; }
+.product-head img { width: 84px; height: 84px; object-fit: contain; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-sm); flex: none; }
+.product-name { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; line-height: 1.2; }
+.product-sub { font-size: 13px; color: var(--ink-muted); margin-top: 4px; }
+.product-sub code { font-family: var(--mono); }
+.facts { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13.5px; }
+.facts th, .facts td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: right; }
+.facts th:first-child, .facts td:first-child { text-align: left; }
+.facts th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-muted); }
+.facts td:not(:first-child) { font-family: var(--mono); }
+.facts td:first-child { font-weight: 600; }
+.facts td .swatch { display: inline-block; vertical-align: -2px; margin-right: 8px; }
+.facts tr.sub td:first-child { padding-left: 30px; font-weight: 500; }
+.result-chart { display: flex; align-items: center; gap: 18px; margin-top: 16px; }
+@media (max-width: 860px) { .scan-grid { grid-template-columns: 1fr; } h1 { font-size: 28px; } }
+@media (max-width: 460px) { body { padding: 18px 10px 48px; } .result-chart { flex-direction: column; align-items: stretch; } .donut { margin: 0 auto; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <p class="eyebrow">Protein · Fat · Carbohydrates</p>
+    <div class="title-row">
+      <h1>Barcode scan</h1>
+    </div>
+  </header>
+
+  <main style="margin-top:22px">
+    <div class="scan-grid">
+      <section class="card scan-card">
+        <h2>Scan a barcode</h2>
+        <div class="btn-row">
+          <button class="btn primary" id="startCam" type="button">Start camera</button>
+          <button class="btn hidden" id="stopCam" type="button">Stop</button>
+          <label class="btn" for="photoInput" style="display:inline-block">Take / choose photo</label>
+          <input type="file" id="photoInput" accept="image/*" capture="environment" class="hidden">
+        </div>
+        <div class="viewfinder" id="viewfinder">
+          <div class="placeholder" id="vfPlaceholder">Point the camera at a barcode (UPC / EAN), or take a photo of one.</div>
+          <video id="video" class="hidden" playsinline muted></video>
+          <img id="photoPreview" class="hidden" alt="Barcode photo">
+          <div class="reticle hidden" id="reticle"></div>
+        </div>
+        <div class="manual">
+          <input type="text" id="manualCode" placeholder="…or type the barcode digits" inputmode="numeric" autocomplete="off">
+          <button class="btn" id="lookupBtn" type="button">Look up</button>
+        </div>
+        <div class="toast hidden" id="scanToast"></div>
+        <p class="hint">Nutrition facts come from <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a>, a crowd-sourced database, so check numbers against the label. The camera only works when this page is served over https or from localhost.</p>
+      </section>
+
+      <section class="card result-card" id="resultCard">
+        <h2>Nutrition facts</h2>
+        <div id="resultBody"><div class="empty">Scan or look up a product to see its nutrition facts.</div></div>
+      </section>
+    </div>
+  </main>
+</div>
+<script>
+// Barcode scanner: reads a UPC/EAN barcode from the camera, a photo, or typed
+// digits and looks up nutrition facts on Open Food Facts. Read-only.
+'use strict';
+
+const MACRO = { protein: '#ad4a3a', fat: '#c47a2b', carbs: '#3b6e8f' };
+
+const $ = id => document.getElementById(id);
+const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function toast(el, msg, isErr = false, ms = 5000) {
+  el.textContent = msg; el.className = el.className.replace(/\b(hidden|err)\b/g, '').trim() + (isErr ? ' err' : '');
+  clearTimeout(el._t); if (ms) el._t = setTimeout(() => el.classList.add('hidden'), ms);
+}
+
+// ---------- Donut chart ----------
+function drawDonut(canvas, data, colors, centerLabel, size = 176) {
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = size * dpr; canvas.height = size * dpr;
+  canvas.style.width = size + 'px'; canvas.style.height = size + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, size, size);
+  const isEmpty = data.every(d => d === 0);
+  const slices = isEmpty ? [100] : data;
+  const x = size / 2, y = size / 2, r = size / 2 - 4, ri = r * 0.58;
+  let a0 = -Math.PI / 2;
+  slices.forEach((s, i) => {
+    const a1 = a0 + Math.PI * 2 * (s / 100);
+    ctx.beginPath();
+    ctx.arc(x, y, r, a0, a1);
+    ctx.arc(x, y, ri, a1, a0, true);
+    ctx.closePath();
+    ctx.fillStyle = isEmpty ? '#ebe6d8' : colors[i];
+    ctx.fill();
+    if (!isEmpty && s > 0 && s < 100) { ctx.strokeStyle = '#fffdf8'; ctx.lineWidth = 3; ctx.stroke(); }
+    a0 = a1;
+  });
+  if (!isEmpty) {
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#1e2a22'; ctx.font = `600 ${Math.round(size / 8.5)}px Fraunces, Georgia, serif`;
+    ctx.fillText(Math.round(data[2]) + '%', x, y - size / 20);
+    ctx.fillStyle = '#6b7568'; ctx.font = `600 ${Math.max(9, Math.round(size / 18))}px "IBM Plex Mono", monospace`;
+    ctx.fillText(centerLabel, x, y + size / 14);
+  }
+}
+function macroSplit(p, f, c, fbr, net) {
+  const fiber = Math.min(fbr, c);
+  const ec = net ? c - fiber : c;
+  const kcal = f * 9 + ec * 4 + p * 4;
+  const pct = v => kcal === 0 ? 0 : v / kcal * 100;
+  return { proteinPercent: pct(p * 4), fatPercent: pct(f * 9), carbsPercent: pct(ec * 4), kcal };
+}
+
+// =====================================================================
+// Scan  (camera barcode → Open Food Facts)
+// =====================================================================
+const video = $('video');
+let camStream = null, scanLoop = null, zxingControls = null, lookingUp = false;
+const BARCODE_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'];
+
+async function getDetector() {
+  if ('BarcodeDetector' in window) {
+    try {
+      const supported = await BarcodeDetector.getSupportedFormats();
+      const fmts = BARCODE_FORMATS.filter(f => supported.includes(f));
+      if (fmts.length) return { kind: 'native', det: new BarcodeDetector({ formats: fmts }) };
+    } catch (_) { /* fall through to ZXing */ }
+  }
+  if (!window.ZXing) {
+    await new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js';
+      s.onload = res; s.onerror = () => rej(new Error('Could not load the barcode reader library.'));
+      document.head.appendChild(s);
+    });
+  }
+  const hints = new Map();
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_128]);
+  hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+  return { kind: 'zxing', det: new ZXing.BrowserMultiFormatReader(hints) };
+}
+function showView(which) {
+  $('vfPlaceholder').classList.toggle('hidden', which !== 'placeholder');
+  video.classList.toggle('hidden', which !== 'video');
+  $('reticle').classList.toggle('hidden', which !== 'video');
+  $('photoPreview').classList.toggle('hidden', which !== 'photo');
+}
+async function startCamera() {
+  const t = $('scanToast');
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+    toast(t, 'Camera needs https or localhost. Use “Take / choose photo” or type the barcode instead.', true, 0); return;
+  }
+  try {
+    stopCamera();
+    const reader = await getDetector();
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false });
+    video.srcObject = camStream; await video.play();
+    showView('video');
+    $('startCam').classList.add('hidden'); $('stopCam').classList.remove('hidden');
+    if (reader.kind === 'native') {
+      const tick = async () => {
+        if (!camStream) return;
+        try {
+          const codes = await reader.det.detect(video);
+          if (codes.length) { onCode(codes[0].rawValue); return; }
+        } catch (_) {}
+        scanLoop = setTimeout(tick, 180);
+      };
+      tick();
+    } else {
+      reader.det.decodeFromStream(camStream, video, (result) => { if (result) onCode(result.getText()); });
+      zxingControls = reader.det;
+    }
+  } catch (err) {
+    console.error(err); stopCamera();
+    toast(t, err.name === 'NotAllowedError' ? 'Camera permission was denied.' : `Couldn’t start camera: ${err.message}`, true, 0);
+  }
+}
+function stopCamera() {
+  clearTimeout(scanLoop); scanLoop = null;
+  if (zxingControls) { try { zxingControls.reset(); } catch (_) {} zxingControls = null; }
+  if (camStream) { camStream.getTracks().forEach(tr => tr.stop()); camStream = null; }
+  video.srcObject = null;
+  if (!video.classList.contains('hidden')) showView('placeholder');
+  $('startCam').classList.remove('hidden'); $('stopCam').classList.add('hidden');
+}
+function onCode(code) {
+  stopCamera();
+  if (navigator.vibrate) navigator.vibrate(60);
+  $('manualCode').value = code;
+  lookup(code);
+}
+$('startCam').addEventListener('click', startCamera);
+$('stopCam').addEventListener('click', stopCamera);
+$('photoInput').addEventListener('change', async e => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  stopCamera();
+  const url = URL.createObjectURL(file);
+  const img = $('photoPreview'); img.src = url; showView('photo');
+  await img.decode().catch(() => {});
+  try {
+    const reader = await getDetector();
+    let code = null;
+    if (reader.kind === 'native') {
+      const codes = await reader.det.detect(await createImageBitmap(file));
+      code = codes[0]?.rawValue;
+    } else {
+      try { code = (await reader.det.decodeFromImageElement(img)).getText(); } catch (_) { code = null; }
+    }
+    if (code) { $('manualCode').value = code; lookup(code); }
+    else toast($('scanToast'), 'No barcode found in that photo — try again closer, in focus, with the bars horizontal.', true, 0);
+  } catch (err) { toast($('scanToast'), err.message, true, 0); }
+});
+$('lookupBtn').addEventListener('click', () => lookup($('manualCode').value));
+$('manualCode').addEventListener('keydown', e => { if (e.key === 'Enter') lookup($('manualCode').value); });
+
+
+async function lookup(raw) {
+  const code = String(raw || '').replace(/\D/g, '');
+  const t = $('scanToast');
+  if (code.length < 6) { toast(t, 'Enter a valid barcode (digits only).', true); return; }
+  if (lookingUp) return;
+  lookingUp = true;
+  $('resultBody').innerHTML = `<div class="empty">Looking up <code>${code}</code>…</div>`;
+  try {
+    const fields = 'code,product_name,generic_name,brands,quantity,serving_size,serving_quantity,nutriments,image_front_small_url,image_front_url';
+    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${fields}`);
+    if (!res.ok && res.status !== 404) throw new Error(`Open Food Facts returned ${res.status}`);
+    const json = await res.json();
+    if (json.status !== 1 || !json.product) {
+      $('resultBody').innerHTML = `<div class="empty">No product found for <code>${code}</code>.<br>You can <a href="https://world.openfoodfacts.org/cgi/product.pl?code=${code}" target="_blank" rel="noopener">add it to Open Food Facts</a>.</div>`;
+      return;
+    }
+    renderProduct(code, json.product);
+  } catch (err) {
+    console.error(err);
+    $('resultBody').innerHTML = `<div class="empty">Lookup failed: ${esc(err.message)}</div>`;
+  } finally { lookingUp = false; }
+}
+
+function renderProduct(code, pr) {
+  const n = pr.nutriments || {};
+  const g = k => (n[k] === undefined || n[k] === '' ? null : num(n[k]));
+  const per100 = { p: g('proteins_100g'), f: g('fat_100g'), c: g('carbohydrates_100g'), fbr: g('fiber_100g') ?? 0, kcal: g('energy-kcal_100g') };
+  const sq = num(pr.serving_quantity) || null;
+  const serv = sq ? Object.fromEntries(Object.entries(per100).map(([k, v]) => [k, v == null ? null : v * sq / 100])) : null;
+  const name = [pr.brands?.split(',')[0]?.trim(), pr.product_name || pr.generic_name].filter(Boolean).join(' – ') || `Product ${code}`;
+  const missing = per100.p == null || per100.f == null || per100.c == null;
+  const fmt = v => v == null ? '—' : v.toFixed(1) + ' g';
+  const row = (cls, sw, label, k) => `<tr class="${cls}"><td><span class="swatch ${sw}"></span>${label}</td><td>${fmt(per100[k])}</td>${serv ? `<td>${fmt(serv[k])}</td>` : ''}</tr>`;
+  const img = pr.image_front_small_url || pr.image_front_url;
+  $('resultBody').innerHTML = `
+    <div class="product-head">
+      ${img ? `<img src="${esc(img)}" alt="">` : ''}
+      <div>
+        <div class="product-name">${esc(name)}</div>
+        <div class="product-sub"><code>${code}</code>${pr.quantity ? ' · ' + esc(pr.quantity) : ''}${pr.serving_size ? ' · serving ' + esc(pr.serving_size) : ''}</div>
+      </div>
+    </div>
+    <table class="facts">
+      <thead><tr><th></th><th>Per 100 g</th>${serv ? `<th>Per serving (${sq} g)</th>` : ''}</tr></thead>
+      <tbody>
+        <tr><td>Energy</td><td>${per100.kcal == null ? '—' : Math.round(per100.kcal) + ' kcal'}</td>${serv ? `<td>${serv.kcal == null ? '—' : Math.round(serv.kcal) + ' kcal'}</td>` : ''}</tr>
+        ${row('', 'fat', 'Fat', 'f')}
+        ${row('', 'carbs', 'Carbs', 'c')}
+        ${row('sub', 'fiber', 'Fiber', 'fbr')}
+        ${row('', 'protein', 'Protein', 'p')}
+      </tbody>
+    </table>
+    ${missing ? '<div class="toast err">Some macros are missing for this product in Open Food Facts.</div>' : `
+    <div class="result-chart">
+      <canvas id="scanDonut" class="donut"></canvas>
+      <div class="legend" id="scanLegend" style="flex:1"></div>
+    </div>`}
+`;
+  if (!missing) {
+    const m = macroSplit(per100.p, per100.f, per100.c, per100.fbr, false);
+    drawDonut($('scanDonut'), [m.proteinPercent, m.fatPercent, m.carbsPercent], [MACRO.protein, MACRO.fat, MACRO.carbs], 'CARBS', 150);
+    $('scanLegend').innerHTML = [['protein', 'Protein', m.proteinPercent], ['fat', 'Fat', m.fatPercent], ['carbs', 'Carbs', m.carbsPercent]]
+      .map(([k, l, v]) => `<div class="legend-item"><span class="swatch ${k}"></span><span class="legend-label">${l}</span><span class="legend-value">${v.toFixed(1)}%</span></div>`).join('');
+  }
+}
+
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopCamera(); });
+</script>
+</body>
+</html>
